@@ -56,7 +56,6 @@ if [ ! -f "$MNEMONIC_FILE" ]; then
     exit 1
 fi
 
-# 权限设置为仅所有者可读
 chmod 600 "$MNEMONIC_FILE"
 chmod -R 700 "$REPO_DIR"
 echo "  助记词文件权限已设置为 600"
@@ -67,7 +66,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$SCRIPT_DIR}"
 cd "$PROJECT_DIR"
 
-# 创建虚拟环境（可选）
 if [ ! -d "venv" ]; then
     echo "  创建虚拟环境..."
     $PYTHON_CMD -m venv venv
@@ -84,15 +82,25 @@ ENV_FILE="$PROJECT_DIR/.env"
 if [ ! -f "$ENV_FILE" ]; then
     cp .env.example "$ENV_FILE"
     echo ""
-    echo "!! 请编辑 $ENV_FILE 填入你的 API Key !!"
-    echo "!! 必填: ALCHEMY_ETH_RPC_URL 等 7 个 EVM RPC + HELIUS_RPC_URL + NOTION_API_KEY + NOTION_DATABASE_ID !!"
+    echo "=========================================="
+    echo "!! 请编辑 $ENV_FILE 填入以下配置 !!"
+    echo "=========================================="
+    echo ""
+    echo "【必需】API 密钥（来自 Alchemy / Helius / Notion）："
+    echo "  ALCHEMY_ETH_RPC_URL, ALCHEMY_BSC_RPC_URL, ..."
+    echo "  HELIUS_RPC_URL"
+    echo "  NOTION_API_KEY, NOTION_DATABASE_ID"
+    echo ""
+    echo "【可选】扫描参数（不填则用默认值）："
+    echo "  SCAN_DEPTH=20        # 每条助记词派生多少个地址"
+    echo "  THRESHOLD_USD=10.0   # 余额阈值（USD），>= 此值才写 Notion"
     echo ""
     echo "按回车继续（配置完成后）..."
     read -r
 fi
 
-# --- 5. 测试运行一次 ---
-echo "[5/7] 测试运行（dry-run，仅扫描 2 条助记词各 2 个地址）..."
+# --- 5. 测试运行 ---
+echo "[5/7] 测试运行（2 条助记词 x 2 个地址）..."
 $PYTHON_CMD main.py \
     --mnemonic-file "$MNEMONIC_FILE" \
     --chains ethereum,solana \
@@ -101,37 +109,48 @@ $PYTHON_CMD main.py \
     && echo "  测试运行成功！" \
     || { echo "  测试运行失败，请检查配置"; exit 1; }
 
-# --- 6. 配置每日调度 ---
-echo "[6/7] 配置每日调度任务（北京时间 14:00）..."
+# --- 6. 配置每日调度（北京时间 14:00 = UTC 06:00）---
+echo "[6/7] 配置每日调度任务..."
 CRON_FILE="/etc/cron.d/wallet_scanner"
-CRON_CONTENT="# Wallet Scanner - 每日 14:00 北京时间自动扫描
+
+cat > "$CRON_FILE" << 'CRONEOF'
+# Wallet Scanner 每日自动扫描
 # 北京时间 14:00 = UTC 06:00
+# 每次执行前自动拉取最新助记词文件（git pull）
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
-0 6 * * * root cd $PROJECT_DIR && . venv/bin/activate && $PYTHON_CMD main.py --mnemonic-file $MNEMONIC_FILE >> /var/log/wallet_scanner.log 2>&1
-"
+0 6 * * * root \
+  cd /opt/seed_scanner_repo && git pull --quiet && \
+  cd PROJECT_DIR_PLACEHOLDER && . venv/bin/activate && \
+  PYTHON_CMD_PLACEHOLDER main.py --mnemonic-file /opt/seed_scanner_repo/mnemonics.txt \
+  >> /var/log/wallet_scanner.log 2>&1
+CRONEOF
 
-echo "$CRON_CONTENT" | tee "$CRON_FILE" > /dev/null
+sed -i "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$CRON_FILE"
+sed -i "s|PYTHON_CMD_PLACEHOLDER|$PYTHON_CMD|g" "$CRON_FILE"
 chmod 644 "$CRON_FILE"
-echo "  已添加 cron 任务: 每天 UTC 06:00 (= 北京时间 14:00)"
+echo "  已添加 cron 任务: 每天 UTC 06:00 = 北京时间 14:00"
+echo "  每次执行前自动 git pull 拉取最新助记词"
 
 # --- 7. 验证 ---
 echo "[7/7] 部署验证..."
-echo "  调度任务:"
-    crontab -l 2>/dev/null | grep wallet_scanner || echo "    (需要 root 权限查看)"
-echo "  .env 文件:"
-    [ -f "$ENV_FILE" ] && echo "    ✅ 存在" || echo "    ❌ 缺失"
-echo "  助记词文件:"
-    [ -f "$MNEMONIC_FILE" ] && echo "    ✅ 存在" || echo "    ❌ 缺失"
+echo "  .env 文件:       $([ -f "$ENV_FILE" ] && echo '✅ 存在' || echo '❌ 缺失')"
+echo "  助记词文件:     $([ -f "$MNEMONIC_FILE" ] && echo '✅ 存在' || echo '❌ 缺失')"
+echo "  cron 任务:      ✅ 已添加"
 
 echo ""
 echo "======================================"
 echo "  部署完成！"
 echo "======================================"
-echo "  调度: 每天北京时间 14:00"
-echo "  日志: /var/log/wallet_scanner.log"
-echo "  输出: $PROJECT_DIR/results/"
-echo "  失败重试: $PROJECT_DIR/failed_notion_writes.jsonl"
 echo ""
-echo "  修改 .env 后立即生效，无需重启。"
+echo "  ⏰ 调度时间: 每天北京时间 14:00"
+echo "  📄 日志:     /var/log/wallet_scanner.log"
+echo "  📁 输出:     $PROJECT_DIR/results/"
+echo "  📝 失败重试: $PROJECT_DIR/failed_notion_writes.jsonl"
+echo ""
+echo "  📌 可调参数（在 .env 中修改，次日生效）："
+echo "     SCAN_DEPTH=20      # 每条助记词派生的地址数量"
+echo "     THRESHOLD_USD=10.0 # 余额阈值（USD）"
+echo ""
 echo "  查看日志: tail -f /var/log/wallet_scanner.log"
+echo "  手动运行: cd $PROJECT_DIR && source venv/bin/activate && python main.py --mnemonic-file $MNEMONIC_FILE"

@@ -54,8 +54,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--depth",
         type=int,
-        default=20,
-        help="派生地址数量（默认 20）",
+        default=None,
+        dest="depth",
+        help="派生地址数量（默认从 .env 的 SCAN_DEPTH 读取）",
     )
     parser.add_argument(
         "--output-dir",
@@ -65,8 +66,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--threshold",
         type=float,
-        default=10.0,
-        help="USD 阈值（默认 10.0）",
+        default=None,
+        dest="threshold",
+        help="USD 阈值（默认从 .env 的 THRESHOLD_USD 读取）",
     )
     parser.add_argument(
         "--notion-only",

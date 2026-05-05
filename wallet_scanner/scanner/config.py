@@ -26,6 +26,9 @@ SOLANA_RPC_ENV_KEY = "HELIUS_RPC_URL"
 NOTION_API_KEY_ENV = "NOTION_API_KEY"
 NOTION_DATABASE_ID_ENV = "NOTION_DATABASE_ID"
 
+DEPTH_ENV_KEY = "SCAN_DEPTH"
+THRESHOLD_USD_ENV_KEY = "THRESHOLD_USD"
+
 DEFAULT_CHAINS = ["ethereum", "bsc", "polygon", "arbitrum", "base", "solana"]
 DEFAULT_DEPTH = 20
 DEFAULT_OUTPUT_DIR = "./results"
@@ -167,13 +170,15 @@ def _load_notion_credentials() -> tuple[str, str]:
 
 
 def _resolve_override[T](
+    env_value: T | None,
     yaml_value: T | None,
     cli_value: T | None,
     default: T,
 ) -> T:
-    """Resolve configuration value with precedence: CLI > YAML > default.
+    """Resolve configuration value with precedence: CLI > .env > YAML > default.
 
     Args:
+        env_value: Value loaded from environment variable.
         yaml_value: Value loaded from config.yaml.
         cli_value: Value passed via CLI argument (may be None).
         default: Default value if neither override is provided.
@@ -183,9 +188,33 @@ def _resolve_override[T](
     """
     if cli_value is not None:
         return cli_value
+    if env_value is not None:
+        return env_value
     if yaml_value is not None:
         return yaml_value
     return default
+
+
+def _load_depth() -> int | None:
+    """Load SCAN_DEPTH from environment variable."""
+    value = os.environ.get(DEPTH_ENV_KEY)
+    if value:
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError(f"Environment variable {DEPTH_ENV_KEY} must be an integer, got: {value}")
+    return None
+
+
+def _load_threshold_usd() -> float | None:
+    """Load THRESHOLD_USD from environment variable."""
+    value = os.environ.get(THRESHOLD_USD_ENV_KEY)
+    if value:
+        try:
+            return float(value)
+        except ValueError:
+            raise ValueError(f"Environment variable {THRESHOLD_USD_ENV_KEY} must be a float, got: {value}")
+    return None
 
 
 def load_config(
@@ -235,15 +264,18 @@ def load_config(
     yaml_max_concurrent = yaml_config.get("max_concurrent")
     yaml_scan_interval = yaml_config.get("scan_interval_ms")
 
+    env_depth = _load_depth()
+    env_threshold = _load_threshold_usd()
+
     return Config(
         evm_rpc_urls=evm_rpc_urls,
         solana_rpc_url=solana_rpc_url,
         notion_api_key=notion_api_key,
         notion_database_id=notion_database_id,
-        chains=_resolve_override(yaml_chains, chains, DEFAULT_CHAINS.copy()),
-        depth=_resolve_override(yaml_depth, depth, DEFAULT_DEPTH),
-        output_dir=_resolve_override(yaml_output_dir, output_dir, DEFAULT_OUTPUT_DIR),
-        threshold_usd=_resolve_override(yaml_threshold, threshold_usd, DEFAULT_THRESHOLD_USD),
-        max_concurrent=_resolve_override(yaml_max_concurrent, max_concurrent, DEFAULT_MAX_CONCURRENT),
-        scan_interval_ms=_resolve_override(yaml_scan_interval, scan_interval_ms, DEFAULT_SCAN_INTERVAL_MS),
+        chains=_resolve_override(None, yaml_chains, chains, DEFAULT_CHAINS.copy()),
+        depth=_resolve_override(env_depth, yaml_depth, depth, DEFAULT_DEPTH),
+        output_dir=_resolve_override(None, yaml_output_dir, output_dir, DEFAULT_OUTPUT_DIR),
+        threshold_usd=_resolve_override(env_threshold, yaml_threshold, threshold_usd, DEFAULT_THRESHOLD_USD),
+        max_concurrent=_resolve_override(None, yaml_max_concurrent, max_concurrent, DEFAULT_MAX_CONCURRENT),
+        scan_interval_ms=_resolve_override(None, yaml_scan_interval, scan_interval_ms, DEFAULT_SCAN_INTERVAL_MS),
     )
