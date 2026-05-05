@@ -2,7 +2,7 @@
 
 ## 功能性验收
 
-- [ ] EVM 五链（ETH/BSC/Polygon/Arbitrum/Optimism）均可通过公共 RPC 查询原生币余额
+- [ ] EVM 五链（ETH/BSC/Polygon/Arbitrum/Base）均可通过公共 RPC 查询原生币余额
 - [ ] Solana 链可通过官方公开 RPC 查询 SOL 余额
 - [ ] BIP-39 12 词助记词可正确派生 EVM（secp256k1）与 Solana（Ed25519）地址
 - [ ] 派生地址数量可配置（默认 20，可通过 `--depth` 调整）

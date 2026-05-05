@@ -7,7 +7,7 @@
 ## What Changes
 
 - 新增 Python 扫描脚本 `wallet_scanner/`
-- 支持 EVM（Ethereum、BSC、Polygon、Arbitrum、Optimism）+ Solana 链
+- 支持 EVM（Ethereum、BSC、Polygon、Arbitrum、Base）+ Solana 链
 - BIP-39 助记词仅在内存中派生地址，不写入磁盘
 - 资源限制：CPU 单核占用，内存峰值 < 500MB，并发请求受控
 - 输出 JSON + CSV 双格式，包含余额、代币、NFT 摘要
@@ -36,11 +36,11 @@
 
 ### Requirement: EVM 链扫描
 
-系统 **SHALL** 支持 Ethereum、BSC、Polygon、Arbitrum、Optimism 五条 EVM 链，支持 BIP-44 标准派生路径（`m/44'/60'/0'/0/i`），查询原生币余额及常见 ERC-20 代币余额。
+系统 **SHALL** 支持 Ethereum、BSC、Polygon、Arbitrum、Base 五条 EVM 链，支持 BIP-44 标准派生路径（`m/44'/60'/0'/0/i`），查询原生币余额及常见 ERC-20 代币余额。
 
 #### Scenario: 单助记词扫描
 - **WHEN** 用户对一条 12 词助记词扫描前 20 个地址（索引 0-19）
-- **THEN** 输出该助记词在每条 EVM 链上的 20 个派生地址及其 ETH/BNB/MATIC 等原生余额
+- **THEN** 输出该助记词在每条 EVM 链（ETH/BSC/MATIC/ARB/Base）上的 20 个派生地址及其 ETH/BNB/MATIC 等原生余额
 
 #### Scenario: 代币余额查询
 - **WHEN** 用户在配置文件中指定要查询的代币合约地址列表

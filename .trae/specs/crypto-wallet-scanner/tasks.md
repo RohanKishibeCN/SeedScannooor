@@ -8,7 +8,7 @@
 
 - [ ] Task 2: 配置模块 (`scanner/config.py`)：YAML 配置加载、环境变量注入、参数校验（链列表、深度、并发上限）
 - [ ] Task 3: 助记词模块 (`scanner/mnemonic.py`)：BIP-39 解析、种子派生、BIP-44 / SLIP-10 地址生成，内存安全处理
-- [ ] Task 4: EVM 链模块 (`scanner/evm.py`)：RPC 异步客户端（Ethereum/BSC/Polygon/Arbitrum/Optimism）、原生余额查询、ERC-20 multicall 代币查询、并发限流
+- [ ] Task 4: EVM 链模块 (`scanner/evm.py`)：RPC 异步客户端（Ethereum/BSC/Polygon/Arbitrum/Base）、原生余额查询、ERC-20 multicall 代币查询、并发限流
 - [ ] Task 5: Solana 链模块 (`scanner/solana.py`)：Solana RPC 客户端、Ed25519 派生、SOL 余额查询、SPL 代币查询
 - [ ] Task 6: 输出模块 (`scanner/output.py`)：JSON / CSV 双格式输出、结果聚合、时间戳格式化，不含助记词明文
 
