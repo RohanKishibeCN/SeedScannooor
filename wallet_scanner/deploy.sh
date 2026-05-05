@@ -115,11 +115,11 @@ CRON_FILE="/etc/cron.d/wallet_scanner"
 
 cat > "$CRON_FILE" << 'CRONEOF'
 # Wallet Scanner 每日自动扫描
-# 北京时间 14:00 = UTC 06:00
+# 北京时间 14:05 = UTC 06:05
 # 每次执行前自动拉取最新助记词文件（git pull）
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
-0 6 * * * root \
+5 6 * * * root \
   cd /opt/seed_scanner_repo && git pull --quiet && \
   cd PROJECT_DIR_PLACEHOLDER && . venv/bin/activate && \
   PYTHON_CMD_PLACEHOLDER main.py --mnemonic-file /opt/seed_scanner_repo/mnemonics.txt \
@@ -129,7 +129,7 @@ CRONEOF
 sed -i "s|PROJECT_DIR_PLACEHOLDER|$PROJECT_DIR|g" "$CRON_FILE"
 sed -i "s|PYTHON_CMD_PLACEHOLDER|$PYTHON_CMD|g" "$CRON_FILE"
 chmod 644 "$CRON_FILE"
-echo "  已添加 cron 任务: 每天 UTC 06:00 = 北京时间 14:00"
+echo "  已添加 cron 任务: 每天 UTC 06:05 = 北京时间 14:05"
 echo "  每次执行前自动 git pull 拉取最新助记词"
 
 # --- 7. 验证 ---
@@ -143,7 +143,7 @@ echo "======================================"
 echo "  部署完成！"
 echo "======================================"
 echo ""
-echo "  ⏰ 调度时间: 每天北京时间 14:00"
+echo "  ⏰ 调度时间: 每天北京时间 14:05"
 echo "  📄 日志:     /var/log/wallet_scanner.log"
 echo "  📁 输出:     $PROJECT_DIR/results/"
 echo "  📝 失败重试: $PROJECT_DIR/failed_notion_writes.jsonl"
