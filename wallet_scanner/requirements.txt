@@ -1,0 +1,10 @@
+bip-utils
+pysolana
+aiohttp
+notion-client
+python-dotenv
+pyyaml
+web3
+cachetools
+pytest
+pytest-asyncio

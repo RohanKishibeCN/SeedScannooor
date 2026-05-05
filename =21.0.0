@@ -1,0 +1,38 @@
+Collecting crcmod
+  Downloading crcmod-1.7.tar.gz (89 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting ecdsa
+  Downloading ecdsa-0.19.2-py2.py3-none-any.whl.metadata (29 kB)
+Collecting ed25519-blake2b-fork<2.0.0,>=1.4.2
+  Downloading ed25519_blake2b_fork-1.4.2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (10 kB)
+Collecting pycryptodome~=3.15
+  Downloading pycryptodome-3.23.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (3.4 kB)
+Collecting pynacl
+  Downloading pynacl-1.6.2-cp38-abi3-manylinux_2_34_x86_64.whl.metadata (10.0 kB)
+Requirement already satisfied: coincurve in /root/.pyenv/versions/3.14.4/lib/python3.14/site-packages (20.0.0)
+Collecting six>=1.9.0 (from ecdsa)
+  Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Requirement already satisfied: cffi>=2.0.0 in /root/.pyenv/versions/3.14.4/lib/python3.14/site-packages (from pynacl) (2.0.0)
+Requirement already satisfied: asn1crypto in /root/.pyenv/versions/3.14.4/lib/python3.14/site-packages (from coincurve) (1.5.1)
+Requirement already satisfied: pycparser in /root/.pyenv/versions/3.14.4/lib/python3.14/site-packages (from cffi>=2.0.0->pynacl) (3.0)
+Downloading ed25519_blake2b_fork-1.4.2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (132 kB)
+Downloading pycryptodome-3.23.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.3/2.3 MB 9.1 MB/s  0:00:00
+Downloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)
+Downloading pynacl-1.6.2-cp38-abi3-manylinux_2_34_x86_64.whl (1.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 16.7 MB/s  0:00:00
+Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Building wheels for collected packages: crcmod
+  Building wheel for crcmod (pyproject.toml): started
+  Building wheel for crcmod (pyproject.toml): finished with status 'done'
+  Created wheel for crcmod: filename=crcmod-1.7-cp314-cp314-linux_x86_64.whl size=32019 sha256=560d855688a7ce3376bd23280ca39b394dbca511152239a77a7262c11f5a6b36
+  Stored in directory: /root/.cache/pip/wheels/b0/a4/9a/a42319b151e77045acc8eee2aee277806736783bea39214ae8
+Successfully built crcmod
+Installing collected packages: ed25519-blake2b-fork, crcmod, six, pycryptodome, pynacl, ecdsa
+
+Successfully installed crcmod-1.7 ecdsa-0.19.2 ed25519-blake2b-fork-1.4.2 pycryptodome-3.23.0 pynacl-1.6.2 six-1.17.0

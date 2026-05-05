@@ -19,8 +19,56 @@
 
 - **新增代码**：`wallet_scanner/` 目录（CLI 工具）
 - **运行时依赖**：Python 3.11+，第三方库（bip-utils、solana、requests、aiohttp、notion-client）
-- **外部依赖**：公共 RPC 端点（EVM：Alchemy/Cloudflare 等；Solana：官方公开节点）；Notion API
-- **安全边界**：助记词文件仅读取模式，内存处理，不落盘；写入 Notion 的仅为助记词索引编号，不含助记词明文
+- **外部依赖**：EVM RPC（Alchemy 免费层）、Solana RPC（Helius 免费层）、Coingecko 公开价格 API、Notion API
+- **安全边界**：助记词文件仅读取模式，内存处理，不落盘；写入 Notion 的仅为助记词索引编号，不含助记词明文；所有密钥通过 `.env` 文件注入，不硬编码
+
+## 需要提前注册的 API（免费）
+
+以下 API 需在部署脚本前提前注册，密钥统一写入 `.env` 文件：
+
+### 1. Alchemy（EVM RPC — 推荐）
+
+**用途**：查询 Ethereum、BSC、Polygon、Arbitrum、Base 链的余额与代币
+
+| 项目 | 说明 |
+|---|---|
+| 注册地址 | https://www.alchemy.com/ （可用 GitHub 登录） |
+| 免费额度 | 每条链每天 ~300M compute units，足够个人轻量使用 |
+| 创建 App | 创建 5 个 App（各对应一条链：ETH/BSC/Polygon/Arbitrum/Base），记录每条的 RPC URL |
+| 字段 | `ALCHEMY_ETH_RPC_URL` / `ALCHEMY_BSC_RPC_URL` / `ALCHEMY_POLYGON_RPC_URL` / `ALCHEMY_ARB_RPC_URL` / `ALCHEMY_BASE_RPC_URL` |
+
+### 2. Helius（Solana RPC — 推荐）
+
+**用途**：查询 Solana 链的 SOL 余额与 SPL 代币
+
+| 项目 | 说明 |
+|---|---|
+| 注册地址 | https://helius.xyz/ （可用 GitHub 登录） |
+| 免费额度 | 每天 100,000 credits，足够轻量扫描 |
+| 获取 RPC URL | Dashboard → 复制 "JSON RPC API" 端点 |
+| 字段 | `HELIUS_RPC_URL` |
+
+### 3. Notion API
+
+**用途**：将扫描结果写入 Notion 数据库
+
+| 项目 | 说明 |
+|---|---|
+| 注册地址 | https://www.notion.so/my-integrations |
+| 创建 Integration | 点击 "New integration" → 命名（如 `WalletScanner`）→ 勾选 "Read content" + "Update content" |
+| 分享数据库 | 在 Notion 中新建数据库 → 右上角 "..." → "Add connections" → 添加刚创建的 Integration |
+| 字段 | `NOTION_API_KEY`（Integration Secret）+ `NOTION_DATABASE_ID`（数据库 URL 中的 32 位 ID） |
+
+### 4. Coingecko（价格 API — 无需注册）
+
+**用途**：获取 ETH/BNB/SOL/USDT/USDC 实时美元价格
+
+| 项目 | 说明 |
+|---|---|
+| 注册 | **无需注册**，直接使用免费公开端点 |
+| 端点 | `https://api.coingecko.com/api/v3/simple/price` |
+| 频率限制 | 免费版 10-30 次/分钟，已内置缓存（5 分钟刷新一次） |
+| 字段 | 无需配置 |
 
 ## ADDED Requirements
 
@@ -66,11 +114,15 @@
 
 ### Requirement: 可配置扫描参数
 
-系统 **SHALL** 通过 YAML 配置文件或命令行参数配置：助记词文件路径、要扫描的链列表、每个助记词派生的地址数量上限、RPC 端点与 API Key、扫描间隔（每请求间隔 ms）、输出文件路径。
+系统 **SHALL** 通过 `.env` 文件配置所有密钥（RPC URL、API Key、Notion 参数），通过 YAML 配置文件或命令行参数配置扫描行为（链列表、派生深度、阈值等）；`.env` 修改后无需重启服务，下次运行自动读取最新值。
 
 #### Scenario: 自定义配置
 - **WHEN** 用户通过 CLI 指定 `--chains ethereum,bsc --depth 50 --output results.json`
 - **THEN** 脚本按配置仅扫描 Ethereum 和 BSC，每条助记词派生 50 个地址，结果写入 results.json
+
+#### Scenario: .env 密钥更新
+- **WHEN** 用户修改 `.env` 中的 `ALCHEMY_ETH_RPC_URL` 后再次运行脚本
+- **THEN** 脚本读取最新的环境变量值，无需重启任何服务
 
 ### Requirement: 输出格式
 
@@ -143,7 +195,8 @@ wallet_scanner/
 │   └── notion.py         # Notion 数据库写入
 ├── main.py               # CLI 入口
 ├── requirements.txt
-├── config.yaml           # 示例配置文件
+├── config.yaml           # 示例配置文件（扫描行为）
+├── .env.example          # 环境变量示例（密钥/RPC URL）
 └── README.md
 ```
 
@@ -152,6 +205,20 @@ wallet_scanner/
 - 助记词文件路径通过命令行传入，不硬编码
 - 日志级别默认 INFO，不记录任何 seed/私钥
 - 建议配合 AppArmor/systemd 限制脚本文件系统访问
-- 生产使用建议：通过环境变量注入 RPC API Key，而非配置文件明文
-- Notion API Token 通过环境变量 `NOTION_API_KEY` 注入，不写入配置文件
+- 所有密钥统一通过 `.env` 文件管理，不硬编码；脚本每次启动时通过 `python-dotenv` 加载
+- `.env` 修改后无需重启任何服务，下次运行自动生效
+- Notion API Token 通过环境变量 `NOTION_API_KEY` 注入
 - 写入 Notion 的仅为助记词行号索引，不含助记词明文；用户需自行在本地维护"索引→助记词"对应表
+
+## .env 文件字段说明
+
+| 变量名 | 说明 | 示例 |
+|---|---|---|
+| `ALCHEMY_ETH_RPC_URL` | Ethereum RPC 端点 | `https://eth-mainnet.g.alchemy.com/v2/xxx` |
+| `ALCHEMY_BSC_RPC_URL` | BSC RPC 端点 | `https://bsc-rpc.g.alchemy.com/v2/xxx` |
+| `ALCHEMY_POLYGON_RPC_URL` | Polygon RPC 端点 | `https://polygon-rpc.g.alchemy.com/v2/xxx` |
+| `ALCHEMY_ARB_RPC_URL` | Arbitrum RPC 端点 | `https://arb-mainnet.g.alchemy.com/v2/xxx` |
+| `ALCHEMY_BASE_RPC_URL` | Base RPC 端点 | `https://base-rpc.g.alchemy.com/v2/xxx` |
+| `HELIUS_RPC_URL` | Solana RPC 端点 | `https://mainnet.helius-rpc.com/?api-key=xxx` |
+| `NOTION_API_KEY` | Notion Integration Secret | `secret_xxx` |
+| `NOTION_DATABASE_ID` | Notion 数据库 ID | `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |

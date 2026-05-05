@@ -2,7 +2,7 @@
 
 ## 环境准备
 
-- [ ] Task 1: 初始化项目目录结构，创建 `wallet_scanner/` 及子模块框架，安装基础依赖
+- [ ] Task 1: 初始化项目目录结构，创建 `wallet_scanner/` 及子模块框架，安装基础依赖，编写 `.env.example`
 
 ## 核心模块
 

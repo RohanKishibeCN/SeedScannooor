@@ -1,0 +1,51 @@
+# ============================================
+# 钱包扫描器配置文件
+# 密钥（API Key / RPC URL）请填写到 .env 文件，不要写在这里
+# ============================================
+
+# 扫描行为配置
+chains:
+  - ethereum      # Ethereum
+  - bsc           # BNB Smart Chain
+  - polygon       # Polygon
+  - arbitrum      # Arbitrum One
+  - base          # Base
+  - solana        # Solana
+
+# 每个助记词派生的地址数量
+depth: 20
+
+# 输出目录
+output_dir: "./results"
+
+# USD 估值阈值（只有总估值 >= 此值才写入 Notion）
+threshold_usd: 10.0
+
+# 最大并发 RPC 请求数（建议不超过 10）
+max_concurrent: 10
+
+# 每请求间隔（毫秒），用于控制 RPC 请求频率
+scan_interval_ms: 100
+
+# 是否启用 Notion 写入
+notion_enabled: true
+
+# Notion 数据库 ID（在 Notion 数据库 URL 中可找到）
+# 例：https://www.notion.so/workspace/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx?v=xxx
+# 则 Database ID 为 32 位字母数字
+notion_database_id: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# RPC 端点覆盖（通常不需要修改，默认使用 .env 中的值）
+# 仅在特殊情况下使用，如使用自定义 RPC 端点
+# rpc_overrides:
+#   ethereum: "https://custom-rpc.example.com"
+#   solana: "https://custom-solana-rpc.example.com"
+
+# 日志级别：DEBUG / INFO / WARNING / ERROR
+log_level: "INFO"
+
+# 代币合约地址覆盖（如使用非标准代币地址）
+# token_contracts:
+#   ethereum:
+#     USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+#     USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
