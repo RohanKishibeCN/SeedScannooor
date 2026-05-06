@@ -4,15 +4,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MORALIS_BASE_URL = "https://deep-index.moralis.io/api/v2.2"
+TATUM_BASE_URL = "https://api.tatum.io/v4/data/wallet/portfolio"
 
 
-def get_chain_moralis_chain_id(chain: str) -> str:
+def get_chain_tatum_id(chain: str) -> str:
     chain_mapping = {
+        "ethereum": "eth",
         "eth": "eth",
         "bsc": "bsc",
         "polygon": "polygon",
-        "arbitrum": "arbitrum",
+        "matic": "polygon",
+        "arbitrum": "arb",
+        "arb": "arb",
         "base": "base",
     }
     return chain_mapping.get(chain.lower(), "eth")
@@ -23,17 +26,17 @@ async def get_address_balances(
     address: str,
     chain: str,
 ) -> dict:
-    chain_id = get_chain_moralis_chain_id(chain)
-    url = f"{MORALIS_BASE_URL}/{address}"
+    chain_id = get_chain_tatum_id(chain)
+    url = TATUM_BASE_URL
 
     headers = {
-        "X-API-Key": api_key,
+        "x-api-key": api_key,
         "accept": "application/json",
     }
 
     params = {
+        "address": address,
         "chain": chain_id,
-        "exclude_spam": "true",
     }
 
     result = {
@@ -48,14 +51,14 @@ async def get_address_balances(
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers, params=params, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 if resp.status != 200:
-                    logger.error(f"Moralis API request failed with status {resp.status} for {address}")
+                    logger.error(f"Tatum API request failed with status {resp.status} for {address}")
                     return result
 
                 data = await resp.json()
 
-                if "native_balance" in data and data["native_balance"]:
+                if "balance" in data and data["balance"]:
                     try:
-                        wei_balance = int(data["native_balance"].get("balance", "0"))
+                        wei_balance = int(data["balance"])
                         result["native_balance"] = round(wei_balance / (10**18), 8)
                     except (ValueError, TypeError) as e:
                         logger.warning(f"Failed to parse native balance for {address}: {e}")
@@ -68,11 +71,8 @@ async def get_address_balances(
                         if symbol in ("USDT", "USDC"):
                             try:
                                 decimals = int(token.get("decimals", 6))
-                                if "balance_formatted" in token:
-                                    balance = float(token["balance_formatted"])
-                                else:
-                                    raw_balance = int(token.get("balance", "0"))
-                                    balance = raw_balance / (10**decimals)
+                                raw_balance = int(token.get("balance", "0"))
+                                balance = raw_balance / (10**decimals)
 
                                 key = symbol.lower()
                                 result[key] = round(balance, 8)
@@ -80,9 +80,9 @@ async def get_address_balances(
                                 logger.warning(f"Failed to parse token balance for {symbol} at {address}: {e}")
 
     except asyncio.TimeoutError:
-        logger.error(f"Moralis API timeout for {address}")
+        logger.error(f"Tatum API timeout for {address}")
     except aiohttp.ClientError as e:
-        logger.error(f"Moralis API client error for {address}: {e}")
+        logger.error(f"Tatum API client error for {address}: {e}")
     except Exception as e:
         logger.error(f"Unexpected error getting balances for {address}: {e}")
 

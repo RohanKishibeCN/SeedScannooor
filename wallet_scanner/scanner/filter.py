@@ -71,18 +71,17 @@ async def get_prices() -> dict[str, float]:
 
 def calculate_total_usd(
     addresses: list[dict],
-    chain: str,
     prices: dict[str, float],
 ) -> float:
     """
     计算一条助记词所有地址的资产总 USD 估值。
 
     Args:
-        addresses: Moralis 格式的地址列表，每项包含:
+        addresses: 格式的地址列表，每项包含:
             - native_balance: 原生币余额（ETH/BNB/MATIC，已转单位）
             - usdt: USDT 余额
             - usdc: USDC 余额
-        chain: 链名，支持 ethereum/bsc/polygon/arbitrum/base
+            - chain: 链名（ethereum/bsc/polygon/arbitrum/base/solana）
         prices: 代币美元价格 dict
 
     Returns:
@@ -90,22 +89,30 @@ def calculate_total_usd(
 
     Example:
         addresses = [
-            {"native_balance": 1.5, "usdt": 100.0, "usdc": 50.0},
-            {"native_balance": 0.5, "usdt": 200.0, "usdc": 0.0},
+            {"native_balance": 1.5, "usdt": 100.0, "usdc": 50.0, "chain": "ethereum"},
+            {"native_balance": 0.5, "usdt": 200.0, "usdc": 0.0, "chain": "bsc"},
         ]
-        calculate_total_usd(addresses, "ethereum", prices)
+        calculate_total_usd(addresses, prices)
     """
-    native_price_key = CHAIN_PRICE_KEY.get(chain, "ethereum")
-    native_price = prices.get(native_price_key, 0.0)
+    chain_price_map = {
+        "ethereum": prices.get("ethereum", 0.0),
+        "bsc": prices.get("binancecoin", 0.0),
+        "polygon": prices.get("ethereum", 0.0),
+        "arbitrum": prices.get("ethereum", 0.0),
+        "base": prices.get("ethereum", 0.0),
+        "solana": prices.get("solana", 0.0),
+    }
     tether_price = prices.get("tether", 1.0)
     usd_coin_price = prices.get("usd-coin", 1.0)
 
     total = 0.0
     for addr_info in addresses:
+        chain = addr_info.get("chain", "ethereum")
         native_balance = addr_info.get("native_balance", 0.0)
         usdt = addr_info.get("usdt", 0.0)
         usdc = addr_info.get("usdc", 0.0)
 
+        native_price = chain_price_map.get(chain, 0.0)
         total += native_balance * native_price
         total += usdt * tether_price
         total += usdc * usd_coin_price

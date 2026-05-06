@@ -84,7 +84,7 @@ async def _scan_mnemonic(
     depth: int,
     max_concurrent: int,
     interval_ms: int,
-    moralis_api_key: str,
+    tatum_api_key: str,
     helius_rpc_url: str,
     prices: dict[str, float],
     threshold: float,
@@ -104,7 +104,7 @@ async def _scan_mnemonic(
         if chain in derived and derived[chain]:
             task = asyncio.create_task(
                 evm.scan_evm_addresses(
-                    moralis_api_key,
+                    tatum_api_key,
                     derived[chain],
                     chain,
                     max_concurrent,
@@ -235,7 +235,7 @@ async def main_async(args: argparse.Namespace) -> None:
                 cfg.depth,
                 cfg.max_concurrent,
                 cfg.scan_interval_ms,
-                cfg.moralis_api_key,
+                cfg.tatum_api_key,
                 cfg.helius_rpc_url,
                 prices,
                 cfg.threshold_usd,
