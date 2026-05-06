@@ -25,7 +25,7 @@ jobs:
 
       - name: Generate mnemonics
         run: |
-          python generate_mnemonics.py mnemonics.txt 300
+          python generate_mnemonics.py mnemonics.txt 500
 
       - name: Commit and push changes
         env:
