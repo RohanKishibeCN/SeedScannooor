@@ -4,7 +4,7 @@ aiohttp
 notion-client
 python-dotenv
 pyyaml
-web3
 cachetools
+tqdm
 pytest
 pytest-asyncio

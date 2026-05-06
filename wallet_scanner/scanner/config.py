@@ -13,15 +13,8 @@ import yaml
 from dotenv import load_dotenv
 
 
-EVM_CHAIN_ENV_MAP: dict[str, str] = {
-    "ethereum": "ALCHEMY_ETH_RPC_URL",
-    "bsc": "ALCHEMY_BSC_RPC_URL",
-    "polygon": "ALCHEMY_POLYGON_RPC_URL",
-    "arbitrum": "ALCHEMY_ARB_RPC_URL",
-    "base": "ALCHEMY_BASE_RPC_URL",
-}
-
-SOLANA_RPC_ENV_KEY = "HELIUS_RPC_URL"
+MORALIS_API_KEY_ENV = "MORALIS_API_KEY"
+HELIUS_RPC_URL_ENV = "HELIUS_RPC_URL"
 
 NOTION_API_KEY_ENV = "NOTION_API_KEY"
 NOTION_DATABASE_ID_ENV = "NOTION_DATABASE_ID"
@@ -42,8 +35,8 @@ class Config:
     """Wallet scanner configuration container.
 
     Attributes:
-        evm_rpc_urls: Mapping from EVM chain name to RPC endpoint URL.
-        solana_rpc_url: Solana network RPC endpoint URL.
+        moralis_api_key: Moralis API key for EVM chain balance queries.
+        helius_rpc_url: Helius RPC endpoint URL for Solana balance queries.
         notion_api_key: Notion integration API key.
         notion_database_id: Notion database ID for results storage.
         chains: List of chain identifiers to scan.
@@ -54,8 +47,8 @@ class Config:
         scan_interval_ms: Milliseconds to wait between requests.
     """
 
-    evm_rpc_urls: dict[str, str]
-    solana_rpc_url: str
+    moralis_api_key: str
+    helius_rpc_url: str
     notion_api_key: str
     notion_database_id: str
     chains: list[str] = field(default_factory=lambda: DEFAULT_CHAINS.copy())
@@ -104,43 +97,36 @@ def _load_yaml_config() -> dict[str, Any]:
         raise ValueError(f"Failed to read config.yaml: {e}")
 
 
-def _load_evm_rpc_urls() -> dict[str, str]:
-    """Extract EVM chain RPC URLs from environment variables.
+def _load_moralis_api_key() -> str:
+    """Extract Moralis API key from environment variables.
 
     Returns:
-        Dictionary mapping chain names to RPC URLs.
+        Moralis API key.
 
     Raises:
-        ValueError: If required RPC URL environment variable is missing.
+        ValueError: If required environment variable is missing.
     """
-    urls: dict[str, str] = {}
-
-    for chain, env_key in EVM_CHAIN_ENV_MAP.items():
-        value = os.environ.get(env_key)
-        if not value:
-            raise ValueError(
-                f"Missing required environment variable: {env_key} "
-                f"(for chain: {chain})"
-            )
-        urls[chain] = value
-
-    return urls
-
-
-def _load_solana_rpc_url() -> str:
-    """Extract Solana RPC URL from environment variables.
-
-    Returns:
-        Solana RPC endpoint URL.
-
-    Raises:
-        ValueError: If required RPC URL environment variable is missing.
-    """
-    value = os.environ.get(SOLANA_RPC_ENV_KEY)
+    value = os.environ.get(MORALIS_API_KEY_ENV)
     if not value:
         raise ValueError(
-            f"Missing required environment variable: {SOLANA_RPC_ENV_KEY} "
-            f"(for Solana RPC)"
+            f"Missing required environment variable: {MORALIS_API_KEY_ENV}"
+        )
+    return value
+
+
+def _load_helius_rpc_url() -> str:
+    """Extract Helius RPC URL from environment variables.
+
+    Returns:
+        Helius RPC endpoint URL.
+
+    Raises:
+        ValueError: If required environment variable is missing.
+    """
+    value = os.environ.get(HELIUS_RPC_URL_ENV)
+    if not value:
+        raise ValueError(
+            f"Missing required environment variable: {HELIUS_RPC_URL_ENV}"
         )
     return value
 
@@ -253,8 +239,8 @@ def load_config(
 
     yaml_config = _load_yaml_config()
 
-    evm_rpc_urls = _load_evm_rpc_urls()
-    solana_rpc_url = _load_solana_rpc_url()
+    moralis_api_key = _load_moralis_api_key()
+    helius_rpc_url = _load_helius_rpc_url()
     notion_api_key, notion_database_id = _load_notion_credentials()
 
     yaml_chains = yaml_config.get("chains")
@@ -268,8 +254,8 @@ def load_config(
     env_threshold = _load_threshold_usd()
 
     return Config(
-        evm_rpc_urls=evm_rpc_urls,
-        solana_rpc_url=solana_rpc_url,
+        moralis_api_key=moralis_api_key,
+        helius_rpc_url=helius_rpc_url,
         notion_api_key=notion_api_key,
         notion_database_id=notion_database_id,
         chains=_resolve_override(None, yaml_chains, chains, DEFAULT_CHAINS.copy()),

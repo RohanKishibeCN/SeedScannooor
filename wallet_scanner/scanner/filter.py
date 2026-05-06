@@ -26,6 +26,13 @@ DEFAULT_PRICES: dict[str, float] = {
     "tether": 1.0,
     "usd-coin": 1.0,
 }
+CHAIN_PRICE_KEY: dict[str, str] = {
+    "ethereum": "ethereum",
+    "bsc": "binancecoin",
+    "polygon": "ethereum",
+    "arbitrum": "ethereum",
+    "base": "ethereum",
+}
 
 
 async def get_prices() -> dict[str, float]:
@@ -64,24 +71,44 @@ async def get_prices() -> dict[str, float]:
 
 def calculate_total_usd(
     addresses: list[dict],
+    chain: str,
     prices: dict[str, float],
 ) -> float:
     """
     计算一条助记词所有地址的资产总 USD 估值。
-    包含：ETH + BNB + SOL + USDT + USDC（各自 × 对应价格）
+
+    Args:
+        addresses: Moralis 格式的地址列表，每项包含:
+            - native_balance: 原生币余额（ETH/BNB/MATIC，已转单位）
+            - usdt: USDT 余额
+            - usdc: USDC 余额
+        chain: 链名，支持 ethereum/bsc/polygon/arbitrum/base
+        prices: 代币美元价格 dict
+
+    Returns:
+        总 USD 估值
+
+    Example:
+        addresses = [
+            {"native_balance": 1.5, "usdt": 100.0, "usdc": 50.0},
+            {"native_balance": 0.5, "usdt": 200.0, "usdc": 0.0},
+        ]
+        calculate_total_usd(addresses, "ethereum", prices)
     """
+    native_price_key = CHAIN_PRICE_KEY.get(chain, "ethereum")
+    native_price = prices.get(native_price_key, 0.0)
+    tether_price = prices.get("tether", 1.0)
+    usd_coin_price = prices.get("usd-coin", 1.0)
+
     total = 0.0
     for addr_info in addresses:
-        eth = addr_info.get("eth", {})
-        sol = addr_info.get("sol", {})
+        native_balance = addr_info.get("native_balance", 0.0)
+        usdt = addr_info.get("usdt", 0.0)
+        usdc = addr_info.get("usdc", 0.0)
 
-        total += eth.get("ETH", 0.0) * prices.get("ethereum", 0.0)
-        total += eth.get("BNB", 0.0) * prices.get("binancecoin", 0.0)
-        total += sol.get("SOL", 0.0) * prices.get("solana", 0.0)
-        total += eth.get("USDT", 0.0) * prices.get("tether", 1.0)
-        total += eth.get("USDC", 0.0) * prices.get("usd-coin", 1.0)
-        total += sol.get("USDT", 0.0) * prices.get("tether", 1.0)
-        total += sol.get("USDC", 0.0) * prices.get("usd-coin", 1.0)
+        total += native_balance * native_price
+        total += usdt * tether_price
+        total += usdc * usd_coin_price
 
     return total
 

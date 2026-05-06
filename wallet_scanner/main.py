@@ -84,11 +84,11 @@ async def _scan_mnemonic(
     depth: int,
     max_concurrent: int,
     interval_ms: int,
-    evm_rpc_urls: dict[str, str],
-    solana_rpc_url: str,
+    moralis_api_key: str,
+    helius_rpc_url: str,
     prices: dict[str, float],
     threshold: float,
-) -> tuple[dict, list[dict], float] | None:
+) -> tuple[dict, float] | None:
     global SHUTDOWN_REQUESTED
     if SHUTDOWN_REQUESTED:
         return None
@@ -96,113 +96,86 @@ async def _scan_mnemonic(
     derived = mnemonic.derive_addresses(mnemonic_str, depth)
 
     evm_chains = [c for c in chains if c != "solana"]
-    solana_chains = ["solana"] if "solana" in chains else []
+    scan_solana = "solana" in chains
 
-    scan_tasks: list[tuple[str, asyncio.Task]] = []
+    tasks: list[tuple[str, asyncio.Task]] = []
 
     for chain in evm_chains:
-        if chain in derived and derived[chain] and chain in evm_rpc_urls:
-            addresses = derived[chain]
-            token_contracts = evm.get_chain_token_contracts(chain.capitalize())
-            task = asyncio.create_task(
-                evm.scan_evm_addresses(evm_rpc_urls[chain], addresses, token_contracts, max_concurrent, interval_ms)
-            )
-            scan_tasks.append((chain, task))
-
-    for chain in solana_chains:
         if chain in derived and derived[chain]:
-            addresses = derived[chain]
             task = asyncio.create_task(
-                solana.scan_solana_addresses(solana_rpc_url, addresses, SOLANA_MINT_ADDRESSES, max_concurrent, interval_ms)
+                evm.scan_evm_addresses(
+                    moralis_api_key,
+                    derived[chain],
+                    chain,
+                    max_concurrent,
+                    interval_ms,
+                )
             )
-            scan_tasks.append((chain, task))
+            tasks.append((chain, task))
 
-    if not scan_tasks:
+    if scan_solana and "solana" in derived and derived["solana"]:
+        task = asyncio.create_task(
+            solana.scan_solana_addresses(
+                helius_rpc_url,
+                derived["solana"],
+                SOLANA_MINT_ADDRESSES,
+                max_concurrent,
+                interval_ms,
+            )
+        )
+        tasks.append(("solana", task))
+
+    if not tasks:
         return None
 
-    scan_results = await asyncio.gather(*[t[1] for t in scan_tasks], return_exceptions=True)
+    scan_results = await asyncio.gather(*[t[1] for t in tasks], return_exceptions=True)
 
     all_addresses: dict[str, list[dict]] = {}
-    for i, (chain_name, _) in enumerate(scan_tasks):
+    for i, (chain_name, _) in enumerate(tasks):
         if isinstance(scan_results[i], Exception):
             continue
         all_addresses[chain_name] = scan_results[i]
 
-    for chain in evm_chains + solana_chains:
+    for chain in evm_chains + (["solana"] if scan_solana else []):
         if chain not in all_addresses:
             all_addresses[chain] = []
 
-    formatted_addresses = _format_addresses_for_calculation(all_addresses)
-    total_usd = scanner_filter.calculate_total_usd(formatted_addresses, prices)
+    all_addresses_flat: list[dict] = []
+    for chain, addr_list in all_addresses.items():
+        for addr_info in addr_list:
+            addr_info_copy = dict(addr_info)
+            addr_info_copy["chain"] = chain
+            all_addresses_flat.append(addr_info_copy)
 
-    return (all_addresses, formatted_addresses, total_usd)
+    total_usd = scanner_filter.calculate_total_usd(all_addresses_flat, prices)
 
-
-def _format_addresses_for_calculation(all_addresses: dict[str, list[dict]]) -> list[dict]:
-    result: list[dict] = []
-
-    for chain, addresses in all_addresses.items():
-        for addr_info in addresses:
-            if chain == "solana":
-                result.append({
-                    "eth": {},
-                    "sol": {
-                        "SOL": addr_info.get("sol", 0.0),
-                        "USDT": addr_info.get("usdt", 0.0),
-                        "USDC": addr_info.get("usdc", 0.0),
-                    },
-                })
-            else:
-                native = addr_info.get("native_balance") or 0.0
-                chain_key = _get_native_key(chain)
-                entry = {
-                    "eth": {
-                        chain_key: native,
-                        "USDT": addr_info.get("usdt", 0.0),
-                        "USDC": addr_info.get("usdc", 0.0),
-                    },
-                    "sol": {},
-                }
-                result.append(entry)
-
-    return result
+    return (all_addresses, total_usd)
 
 
-def _get_native_key(chain: str) -> str:
-    mapping = {
-        "ethereum": "ETH",
-        "bsc": "BNB",
-        "polygon": "MATIC",
-        "arbitrum": "ETH",
-        "base": "ETH",
-    }
-    return mapping.get(chain, chain.upper()[:3])
-
-
-def _build_notion_pages(aggregated: dict, snapshot_time: str) -> list[dict]:
+def _build_notion_pages(
+    all_addresses: dict[str, list[dict]],
+    total_usd: float,
+    mnemonic_index: int,
+    snapshot_time: str,
+) -> list[dict]:
     pages: list[dict] = []
-    addresses = aggregated.get("addresses", [])
-    total_usd = aggregated.get("total_usd_value", 0.0)
-    mnemonic_index = aggregated.get("mnemonic_index", 0)
+    for chain, addr_list in all_addresses.items():
+        for addr_info in addr_list:
+            if chain == "solana":
+                native_balance = addr_info.get("sol", 0.0)
+            else:
+                native_balance = addr_info.get("native_balance", 0.0) or 0.0
 
-    for addr in addresses:
-        chain = addr.get("chain", "")
-        if chain == "solana":
-            native_balance = addr.get("sol_balance", 0.0)
-        else:
-            native_balance = addr.get("native_balance", 0.0) or 0.0
-
-        pages.append({
-            "mnemonic_index": mnemonic_index,
-            "chain": chain,
-            "address": addr.get("address", ""),
-            "native_balance": native_balance,
-            "usdt": addr.get("usdt", 0.0),
-            "usdc": addr.get("usdc", 0.0),
-            "total_usd": total_usd,
-            "snapshot_time": snapshot_time,
-        })
-
+            pages.append({
+                "mnemonic_index": mnemonic_index,
+                "chain": chain,
+                "address": addr_info.get("address", ""),
+                "native_balance": native_balance,
+                "usdt": addr_info.get("usdt", 0.0),
+                "usdc": addr_info.get("usdc", 0.0),
+                "total_usd": total_usd,
+                "snapshot_time": snapshot_time,
+            })
     return pages
 
 
@@ -233,7 +206,7 @@ async def main_async(args: argparse.Namespace) -> None:
     print(f"USD 阈值: ${cfg.threshold_usd}")
 
     prices = await scanner_filter.get_prices()
-    print(f"当前价格: ETH=${prices.get('ethereum', 0):.2f}, BNB=${prices.get('binancecoin', 0):.2f}, SOL=${prices.get('solana', 0):.2f}")
+    print(f"当前价格: ETH=${prices.get('ethereum', 0):.2f}, SOL=${prices.get('solana', 0):.2f}, USDT=${prices.get('tether', 0):.4f}")
 
     os.makedirs(cfg.output_dir, exist_ok=True)
 
@@ -262,8 +235,8 @@ async def main_async(args: argparse.Namespace) -> None:
                 cfg.depth,
                 cfg.max_concurrent,
                 cfg.scan_interval_ms,
-                cfg.evm_rpc_urls,
-                cfg.solana_rpc_url,
+                cfg.moralis_api_key,
+                cfg.helius_rpc_url,
                 prices,
                 cfg.threshold_usd,
             )
@@ -271,19 +244,18 @@ async def main_async(args: argparse.Namespace) -> None:
             if scan_result is None:
                 continue
 
-            all_addresses, formatted_addresses, total_usd = scan_result
-
-            aggregated = output.aggregate_results(all_addresses, line_num, snapshot_time)
-            aggregated["total_usd_value"] = total_usd
-
-            for addr in aggregated.get("addresses", []):
-                addr["total_usd_value"] = total_usd
+            all_addresses, total_usd = scan_result
 
             if scanner_filter.should_keep(total_usd, cfg.threshold_usd):
                 passed_count += 1
+                aggregated = output.aggregate_results(all_addresses, line_num, snapshot_time)
+                aggregated["total_usd_value"] = total_usd
+
+                for addr in aggregated.get("addresses", []):
+                    addr["total_usd_value"] = total_usd
 
                 if NOTION_ONLY:
-                    pages = _build_notion_pages(aggregated, snapshot_time)
+                    pages = _build_notion_pages(all_addresses, total_usd, line_num, snapshot_time)
                     notion_pages.extend(pages)
                 else:
                     results.append(aggregated)
