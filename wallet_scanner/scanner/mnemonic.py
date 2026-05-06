@@ -6,6 +6,7 @@ from bip_utils import (
     Bip44Coins,
     Bip44Changes,
     Bip32Slip10Ed25519,
+    SolAddr,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,7 @@ def derive_addresses(mnemonic: str, depth: int = 20) -> dict[str, list[str]]:
                 .ChildKey(0x80000000 | 0)
                 .ChildKey(0x80000000 | i)
             )
-            solana_addresses.append(derived.PublicKey().RawCompressed().ToHex())
+            solana_addresses.append(SolAddr.EncodeKey(derived.PublicKey().RawCompressed().ToBytes()))
         result["solana"] = solana_addresses
         del seed
     except Exception:
