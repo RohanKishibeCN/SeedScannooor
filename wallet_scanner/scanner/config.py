@@ -21,6 +21,8 @@ NOTION_DATABASE_ID_ENV = "NOTION_DATABASE_ID"
 
 DEPTH_ENV_KEY = "SCAN_DEPTH"
 THRESHOLD_USD_ENV_KEY = "THRESHOLD_USD"
+MAX_CONCURRENT_ENV_KEY = "MAX_CONCURRENT"
+SCAN_INTERVAL_MS_ENV_KEY = "SCAN_INTERVAL_MS"
 
 DEFAULT_CHAINS = ["ethereum", "solana"]
 DEFAULT_DEPTH = 20
@@ -233,6 +235,26 @@ def _load_threshold_usd() -> float | None:
     return None
 
 
+def _load_max_concurrent() -> int | None:
+    value = os.environ.get(MAX_CONCURRENT_ENV_KEY)
+    if value:
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError(f"Environment variable {MAX_CONCURRENT_ENV_KEY} must be an integer, got: {value}")
+    return None
+
+
+def _load_scan_interval_ms() -> int | None:
+    value = os.environ.get(SCAN_INTERVAL_MS_ENV_KEY)
+    if value:
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError(f"Environment variable {SCAN_INTERVAL_MS_ENV_KEY} must be an integer, got: {value}")
+    return None
+
+
 def load_config(
     chains: list[str] | None = None,
     depth: int | None = None,
@@ -282,6 +304,8 @@ def load_config(
 
     env_depth = _load_depth()
     env_threshold = _load_threshold_usd()
+    env_max_concurrent = _load_max_concurrent()
+    env_scan_interval = _load_scan_interval_ms()
 
     enabled_chains = _load_enabled_chains()
     final_chains = _resolve_override(None, yaml_chains, chains, enabled_chains)
@@ -295,6 +319,6 @@ def load_config(
         depth=_resolve_override(env_depth, yaml_depth, depth, DEFAULT_DEPTH),
         output_dir=_resolve_override(None, yaml_output_dir, output_dir, DEFAULT_OUTPUT_DIR),
         threshold_usd=_resolve_override(env_threshold, yaml_threshold, threshold_usd, DEFAULT_THRESHOLD_USD),
-        max_concurrent=_resolve_override(None, yaml_max_concurrent, max_concurrent, DEFAULT_MAX_CONCURRENT),
-        scan_interval_ms=_resolve_override(None, yaml_scan_interval, scan_interval_ms, DEFAULT_SCAN_INTERVAL_MS),
+        max_concurrent=_resolve_override(env_max_concurrent, yaml_max_concurrent, max_concurrent, DEFAULT_MAX_CONCURRENT),
+        scan_interval_ms=_resolve_override(env_scan_interval, yaml_scan_interval, scan_interval_ms, DEFAULT_SCAN_INTERVAL_MS),
     )
