@@ -284,17 +284,14 @@ def load_config(
     env_threshold = _load_threshold_usd()
 
     enabled_chains = _load_enabled_chains()
-    if chains is None and yaml_chains is None:
-        chains = enabled_chains
-    elif chains is None:
-        chains = yaml_chains
+    final_chains = _resolve_override(None, yaml_chains, chains, enabled_chains)
 
     return Config(
         tatum_api_key=tatum_api_key,
         helius_rpc_url=helius_rpc_url,
         notion_api_key=notion_api_key,
         notion_database_id=notion_database_id,
-        chains=_resolve_override(None, yaml_chains, chains, DEFAULT_CHAINS.copy()),
+        chains=final_chains,
         depth=_resolve_override(env_depth, yaml_depth, depth, DEFAULT_DEPTH),
         output_dir=_resolve_override(None, yaml_output_dir, output_dir, DEFAULT_OUTPUT_DIR),
         threshold_usd=_resolve_override(env_threshold, yaml_threshold, threshold_usd, DEFAULT_THRESHOLD_USD),
