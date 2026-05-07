@@ -22,12 +22,23 @@ NOTION_DATABASE_ID_ENV = "NOTION_DATABASE_ID"
 DEPTH_ENV_KEY = "SCAN_DEPTH"
 THRESHOLD_USD_ENV_KEY = "THRESHOLD_USD"
 
-DEFAULT_CHAINS = ["ethereum", "bsc", "polygon", "arbitrum", "base", "solana"]
+DEFAULT_CHAINS = ["ethereum", "solana"]
 DEFAULT_DEPTH = 20
 DEFAULT_OUTPUT_DIR = "./results"
 DEFAULT_THRESHOLD_USD = 10.0
 DEFAULT_MAX_CONCURRENT = 10
 DEFAULT_SCAN_INTERVAL_MS = 100
+
+CHAIN_ENABLE_ENV_KEYS = {
+    "ethereum": "CHAIN_ETHEREUM",
+    "bsc": "CHAIN_BSC",
+    "polygon": "CHAIN_POLYGON",
+    "arbitrum": "CHAIN_ARBITRUM",
+    "base": "CHAIN_BASE",
+    "solana": "CHAIN_SOLANA",
+}
+
+ALL_SUPPORTED_CHAINS = ["ethereum", "bsc", "polygon", "arbitrum", "base", "solana"]
 
 
 @dataclass
@@ -181,6 +192,25 @@ def _resolve_override[T](
     return default
 
 
+def _load_enabled_chains() -> list[str]:
+    """Load enabled chains from individual CHAIN_* environment variables.
+
+    Each chain can be individually enabled/disabled via environment variables.
+    Default chains are ethereum and solana.
+
+    Returns:
+        List of enabled chain names.
+    """
+    enabled = []
+    for chain in ALL_SUPPORTED_CHAINS:
+        env_key = CHAIN_ENABLE_ENV_KEYS.get(chain)
+        if env_key:
+            value = os.environ.get(env_key, "").lower()
+            if value in ("1", "true", "yes", "on"):
+                enabled.append(chain)
+    return enabled if enabled else DEFAULT_CHAINS.copy()
+
+
 def _load_depth() -> int | None:
     """Load SCAN_DEPTH from environment variable."""
     value = os.environ.get(DEPTH_ENV_KEY)
@@ -252,6 +282,12 @@ def load_config(
 
     env_depth = _load_depth()
     env_threshold = _load_threshold_usd()
+
+    enabled_chains = _load_enabled_chains()
+    if chains is None and yaml_chains is None:
+        chains = enabled_chains
+    elif chains is None:
+        chains = yaml_chains
 
     return Config(
         tatum_api_key=tatum_api_key,

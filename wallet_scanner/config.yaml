@@ -3,14 +3,8 @@
 # 密钥（API Key / RPC URL）请填写到 .env 文件，不要写在这里
 # ============================================
 
-# 扫描行为配置
-chains:
-  - ethereum      # Ethereum
-  - bsc           # BNB Smart Chain
-  - polygon       # Polygon
-  - arbitrum      # Arbitrum One
-  - base          # Base
-  - solana        # Solana
+# 扫描链配置请在 .env 中通过 CHAIN_* 变量控制（见 .env.example）
+# 默认只扫描 ethereum 和 solana
 
 # 每个助记词派生的地址数量
 depth: 20
