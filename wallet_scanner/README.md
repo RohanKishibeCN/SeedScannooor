@@ -51,7 +51,8 @@ Coingecko 价格 API **无需注册**。
 
 ```bash
 cd wallet_scanner
-pip install -r requirements.txt
+npm ci
+npm run build
 cp .env.example .env
 ```
 
@@ -91,16 +92,16 @@ zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo
 
 ```bash
 # 基本用法
-python main.py --mnemonic-file ./mnemonics.txt
+node dist/cli.js --mnemonic-file ./mnemonics.txt
 
 # 指定链和深度
-python main.py --mnemonic-file ./mnemonics.txt --chains ethereum,bsc,solana --depth 10
+node dist/cli.js --mnemonic-file ./mnemonics.txt --chains ethereum,bsc,solana --depth 10
 
 # 指定阈值
-python main.py --mnemonic-file ./mnemonics.txt --threshold 10.0
+node dist/cli.js --mnemonic-file ./mnemonics.txt --threshold 10.0
 
 # 跳过本地文件，仅写 Notion
-python main.py --mnemonic-file ./mnemonics.txt --notion-only
+node dist/cli.js --mnemonic-file ./mnemonics.txt --notion-only
 ```
 
 ### 输出
@@ -121,20 +122,14 @@ python main.py --mnemonic-file ./mnemonics.txt --notion-only
 
 ```
 wallet_scanner/
-├── scanner/              # 核心模块
-│   ├── config.py         # 配置加载
-│   ├── mnemonic.py       # 助记词派生
-│   ├── evm.py            # EVM 链查询（Tatum）
-│   ├── solana.py         # Solana 链查询（Helius）
-│   ├── filter.py         # 余额过滤
-│   ├── notion.py         # Notion 写入
-│   ├── output.py         # 输出格式化
-│   └── resource_guard.py # 资源限制
-├── main.py               # CLI 入口
+├── src/                  # TypeScript 源码
+├── dist/                 # 编译产物（node 直接运行）
+├── tests/                # vitest 单元测试
 ├── config.yaml           # 配置文件
 ├── .env.example          # 环境变量模板
 ├── deploy.sh             # VPS 部署脚本
-├── requirements.txt
+├── package.json
+├── package-lock.json
 └── README.md
 ```
 
