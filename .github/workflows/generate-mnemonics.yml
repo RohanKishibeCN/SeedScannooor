@@ -18,19 +18,19 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.10"
-
-      - name: Install dependencies
-        run: pip install -q mnemonic
+          node-version: "20"
 
       - name: Ensure main branch
         run: git checkout main
 
       - name: Generate mnemonics
-        run: python generate_mnemonics.py mnemonics.txt 100
+        run: |
+          npm ci --prefix wallet_scanner
+          npm run build --prefix wallet_scanner
+          node wallet_scanner/dist/generate-mnemonics.js mnemonics.txt 100
 
       - name: Commit and push changes
         env:

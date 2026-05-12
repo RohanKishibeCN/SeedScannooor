@@ -11,17 +11,17 @@ echo "======================================"
 
 # --- 1. 检测并安装依赖 ---
 echo "[1/7] 检查系统依赖..."
-if command -v python3 &>/dev/null; then
-    PYTHON_CMD="python3"
-elif command -v python &>/dev/null; then
-    PYTHON_CMD="python"
-else
-    echo "错误: 未找到 Python，请先安装 Python 3.11+"
+if ! command -v node &>/dev/null; then
+    echo "错误: 未找到 Node.js，请先安装 Node.js 20.20.2+"
+    exit 1
+fi
+if ! command -v npm &>/dev/null; then
+    echo "错误: 未找到 npm，请先安装 npm"
     exit 1
 fi
 
-PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
-echo "  Python 版本: $PYTHON_VERSION"
+NODE_VERSION=$(node --version 2>&1)
+echo "  Node 版本: $NODE_VERSION"
 
 # --- 2. 仓库路径配置 ---
 echo "[2/7] 配置仓库路径..."
@@ -49,10 +49,10 @@ chmod -R 700 "$REPO_DIR"
 echo "  助记词文件权限已设置为 600"
 
 # --- 3. 安装项目依赖 ---
-echo "[3/7] 安装 Python 依赖..."
+echo "[3/7] 安装 Node 依赖并构建..."
 cd "$PROJECT_DIR"
-pip install --break-system-packages --upgrade pip
-pip install --break-system-packages -r requirements.txt
+npm ci --no-audit --no-fund
+npm run build
 
 # --- 4. 配置 .env ---
 echo "[4/7] 配置环境变量..."
@@ -80,7 +80,7 @@ fi
 
 # --- 5. 测试运行 ---
 echo "[5/7] 测试运行（2 条助记词 x 2 个地址）..."
-$PYTHON_CMD main.py \
+node dist/cli.js \
     --mnemonic-file "$MNEMONIC_FILE" \
     --chains ethereum,solana \
     --depth 2 \
@@ -101,7 +101,8 @@ PATH=/usr/local/bin:/usr/bin:/bin
 5 6 * * * root \
   cd ${REPO_DIR} && git pull --quiet && \
   cd ${PROJECT_DIR} && \
-  ${PYTHON_CMD} main.py --mnemonic-file ${MNEMONIC_FILE} \
+  npm ci --no-audit --no-fund >/dev/null 2>&1 && npm run build >/dev/null 2>&1 && \
+  node dist/cli.js --mnemonic-file ${MNEMONIC_FILE} \
   >> /var/log/wallet_scanner.log 2>&1
 CRONEOF
 
@@ -130,4 +131,4 @@ echo "     SCAN_DEPTH=20      # 每条助记词派生的地址数量"
 echo "     THRESHOLD_USD=10.0 # 余额阈值（USD）"
 echo ""
 echo "  查看日志: tail -f /var/log/wallet_scanner.log"
-echo "  手动运行: cd $PROJECT_DIR && $PYTHON_CMD main.py --mnemonic-file $MNEMONIC_FILE"
+echo "  手动运行: cd $PROJECT_DIR && node dist/cli.js --mnemonic-file $MNEMONIC_FILE"
