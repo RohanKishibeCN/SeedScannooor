@@ -99,11 +99,19 @@ cat > "$CRON_FILE" << CRONEOF
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 5 6 * * * root \
-  cd ${REPO_DIR} && git pull --quiet && \
-  cd ${PROJECT_DIR} && \
-  npm ci --no-audit --no-fund >/dev/null 2>&1 && npm run build >/dev/null 2>&1 && \
-  node dist/cli.js --mnemonic-file ${MNEMONIC_FILE} \
-  >> /var/log/wallet_scanner.log 2>&1
+  bash -lc 'set -e; \
+    cd ${REPO_DIR} && git pull --quiet; \
+    cd ${PROJECT_DIR} && npm ci --no-audit --no-fund >/dev/null 2>&1 && npm run build >/dev/null 2>&1; \
+    chmod +x ${PROJECT_DIR}/update-stats.sh 2>/dev/null || true; \
+    RUN_ID=$(date -u +%Y-%m-%dT%H:%M:%SZ); \
+    echo "WALLET_SCANNER_RUN_START ${RUN_ID} $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> /var/log/wallet_scanner.log; \
+    set +e; \
+    node dist/cli.js --mnemonic-file ${MNEMONIC_FILE} >> /var/log/wallet_scanner.log 2>&1; \
+    RC=$?; \
+    set -e; \
+    echo "WALLET_SCANNER_RUN_END ${RUN_ID} $(date -u +%Y-%m-%dT%H:%M:%SZ) exit_code=${RC}" >> /var/log/wallet_scanner.log; \
+    LOG_FILE=/var/log/wallet_scanner.log MNEMONICS_FILE=${MNEMONIC_FILE} ${PROJECT_DIR}/update-stats.sh ${RUN_ID} >> /var/log/wallet_scanner.log 2>&1; \
+    exit 0'
 CRONEOF
 
 chmod 644 "$CRON_FILE"
