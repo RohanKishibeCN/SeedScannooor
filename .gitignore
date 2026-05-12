@@ -1,0 +1,12 @@
+*.log
+.DS_Store
+
+.env
+.env.*
+
+wallet_scanner/node_modules/
+wallet_scanner/dist/
+wallet_scanner/results/
+wallet_scanner/results_test/
+wallet_scanner/failed_notion_writes.jsonl
+

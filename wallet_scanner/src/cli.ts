@@ -194,11 +194,17 @@ const main = async (): Promise<void> => {
   process.on("SIGINT", onSignal);
   process.on("SIGTERM", onSignal);
 
-  const bar = new cliProgress.SingleBar(
-    { format: "Scanning mnemonics |{bar}| {value}/{total} {percentage}%" },
-    cliProgress.Presets.shades_classic
-  );
-  bar.start(mnemonics.length, 0);
+  const isTty = Boolean(process.stdout.isTTY);
+  const bar = isTty
+    ? new cliProgress.SingleBar(
+        { format: "Scanning mnemonics |{bar}| {value}/{total} {percentage}%" },
+        cliProgress.Presets.shades_classic
+      )
+    : null;
+
+  if (bar) {
+    bar.start(mnemonics.length, 0);
+  }
 
   for (let idx = 0; idx < mnemonics.length; idx += 1) {
     if (shutdown.isRequested()) {
@@ -206,7 +212,11 @@ const main = async (): Promise<void> => {
     }
 
     const [lineNum, mnemonicStr] = mnemonics[idx]!;
-    bar.update(idx + 1);
+    if (bar) {
+      bar.update(idx + 1);
+    } else if ((idx + 1) % 100 === 0 || idx + 1 === mnemonics.length) {
+      console.log(`Scanning mnemonics: ${idx + 1}/${mnemonics.length}`);
+    }
 
     const scanResult = await scanMnemonic(
       mnemonicStr,
@@ -240,7 +250,9 @@ const main = async (): Promise<void> => {
     }
   }
 
-  bar.stop();
+  if (bar) {
+    bar.stop();
+  }
 
   const scanTimeStr = getTimestamp();
   if (notionPages.length > 0) {
@@ -276,4 +288,3 @@ main().catch((e) => {
   process.stderr.write(`\n发生错误: ${String(e)}\n`);
   process.exitCode = 1;
 });
-
