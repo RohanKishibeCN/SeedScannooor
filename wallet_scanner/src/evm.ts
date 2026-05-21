@@ -48,12 +48,13 @@ export const getAddressBalances = async (
     raw_tokens: []
   };
 
-  try {
+  const fetchPortfolio = async (tokenTypes: "native" | "fungible"): Promise<TatumPortfolioResponse> => {
     const url = new URL(TATUM_BASE_URL);
-    url.searchParams.set("address", address);
     url.searchParams.set("chain", chainId);
+    url.searchParams.set("addresses", address);
+    url.searchParams.set("tokenTypes", tokenTypes);
 
-    const data = await fetchJson<TatumPortfolioResponse>(url.toString(), {
+    return await fetchJson<TatumPortfolioResponse>(url.toString(), {
       method: "GET",
       headers: {
         "x-api-key": apiKey,
@@ -61,18 +62,39 @@ export const getAddressBalances = async (
       },
       timeoutMs: 30_000
     });
+  };
 
-    if (data.balance) {
-      const wei = Number.parseInt(data.balance, 10);
+  const logHttpError = (e: unknown): void => {
+    if (!(e instanceof HttpError)) return;
+    const importantStatuses = new Set([400, 401, 403, 429]);
+    if (!importantStatuses.has(e.status)) return;
+    if (tatumErrorLogCount >= 5) return;
+
+    tatumErrorLogCount += 1;
+    console.error(`Tatum request failed: status=${e.status} chain=${chainId} address=${address}`);
+    if (tatumErrorLogCount === 5) {
+      console.error("Tatum request failed: too many errors, suppressing further logs...");
+    }
+  };
+
+  try {
+    const nativeData = await fetchPortfolio("native");
+    if (nativeData.balance) {
+      const wei = Number.parseInt(nativeData.balance, 10);
       if (Number.isFinite(wei)) {
         result.native_balance = Math.round((wei / 10 ** 18) * 1e8) / 1e8;
       }
     }
+  } catch (e) {
+    logHttpError(e);
+  }
 
-    if (Array.isArray(data.tokens)) {
-      result.raw_tokens = data.tokens;
+  try {
+    const tokenData = await fetchPortfolio("fungible");
+    if (Array.isArray(tokenData.tokens)) {
+      result.raw_tokens = tokenData.tokens;
 
-      for (const token of data.tokens) {
+      for (const token of tokenData.tokens) {
         const symbol = (token.symbol ?? "").toUpperCase();
         if (symbol !== "USDT" && symbol !== "USDC") {
           continue;
@@ -88,17 +110,7 @@ export const getAddressBalances = async (
       }
     }
   } catch (e) {
-    if (e instanceof HttpError) {
-      const importantStatuses = new Set([400, 401, 403, 429]);
-      if (importantStatuses.has(e.status) && tatumErrorLogCount < 5) {
-        tatumErrorLogCount += 1;
-        console.error(`Tatum request failed: status=${e.status} chain=${chainId} address=${address}`);
-        if (tatumErrorLogCount === 5) {
-          console.error("Tatum request failed: too many errors, suppressing further logs...");
-        }
-      }
-    }
-    return result;
+    logHttpError(e);
   }
 
   return result;
