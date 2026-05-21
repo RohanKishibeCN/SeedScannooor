@@ -29,4 +29,3 @@ export const fetchJson = async <T>(url: string, options: FetchJsonOptions = {}):
     if (timeout) clearTimeout(timeout);
   }
 };
-
