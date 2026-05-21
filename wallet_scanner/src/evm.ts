@@ -50,8 +50,9 @@ export const getAddressBalances = async (
 
   try {
     const url = new URL(TATUM_BASE_URL);
-    url.searchParams.set("address", address);
     url.searchParams.set("chain", chainId);
+    url.searchParams.set("addresses", address);
+    url.searchParams.set("tokenTypes", "native,fungible");
 
     const data = await fetchJson<TatumPortfolioResponse>(url.toString(), {
       method: "GET",
