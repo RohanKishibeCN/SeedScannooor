@@ -1,21 +1,25 @@
 import type { EvmAddressBalance } from "./types.js";
 import { fetchJson } from "./http.js";
 import { Semaphore, sleep } from "./utils.js";
+import { HttpError } from "./http.js";
 
 const TATUM_BASE_URL = "https://api.tatum.io/v4/data/wallet/portfolio";
 
+let tatumErrorLogCount = 0;
+
 export const getChainTatumId = (chain: string): string => {
   const chainMapping: Record<string, string> = {
-    ethereum: "eth",
-    eth: "eth",
+    ethereum: "ethereum",
+    eth: "ethereum",
     bsc: "bsc",
     polygon: "polygon",
     matic: "polygon",
-    arbitrum: "arb",
-    arb: "arb",
+    arbitrum: "arbitrum-one",
+    arb: "arbitrum-one",
+    "arbitrum-one": "arbitrum-one",
     base: "base"
   };
-  return chainMapping[chain.toLowerCase()] ?? "eth";
+  return chainMapping[chain.toLowerCase()] ?? "ethereum";
 };
 
 interface TatumToken {
@@ -83,7 +87,17 @@ export const getAddressBalances = async (
         if (symbol === "USDC") result.usdc = Math.round(balance * 1e8) / 1e8;
       }
     }
-  } catch {
+  } catch (e) {
+    if (e instanceof HttpError) {
+      const importantStatuses = new Set([400, 401, 403, 429]);
+      if (importantStatuses.has(e.status) && tatumErrorLogCount < 5) {
+        tatumErrorLogCount += 1;
+        console.error(`Tatum request failed: status=${e.status} chain=${chainId} address=${address}`);
+        if (tatumErrorLogCount === 5) {
+          console.error("Tatum request failed: too many errors, suppressing further logs...");
+        }
+      }
+    }
     return result;
   }
 
@@ -119,4 +133,3 @@ export const scanEvmAddresses = async (
     };
   });
 };
-
