@@ -1,4 +1,4 @@
-import type { SolanaAddressBalance } from "./types.js";
+import type { SolanaAddressBalance, TokenConfig } from "./types.js";
 import { fetchJson } from "./http.js";
 import { Semaphore, sleep } from "./utils.js";
 
@@ -44,13 +44,9 @@ export const getSolBalance = async (rpcUrl: string, address: string): Promise<nu
 export const getSplBalances = async (
   rpcUrl: string,
   ownerAddress: string,
-  mintAddresses: Record<string, string>
-): Promise<{ usdt: number; usdc: number }> => {
-  const mintToSymbol = Object.fromEntries(
-    Object.entries(mintAddresses).map(([symbol, mint]) => [mint, symbol.toUpperCase()])
-  ) as Record<string, string>;
-
-  const out = { usdt: 0.0, usdc: 0.0 };
+  tokens: TokenConfig[]
+): Promise<Record<string, number>> => {
+  const out: Record<string, number> = {};
 
   const payload: JsonRpcRequest = {
     jsonrpc: "2.0",
@@ -68,6 +64,7 @@ export const getSplBalances = async (
     });
 
     if ("error" in data) return out;
+
     const accounts = Array.isArray(data.result?.value) ? data.result.value : [];
 
     for (const account of accounts) {
@@ -77,11 +74,12 @@ export const getSplBalances = async (
       const uiAmount = info?.tokenAmount?.uiAmount as number | undefined;
 
       if (!mint || typeof uiAmount !== "number") continue;
-      const symbol = mintToSymbol[mint];
-      if (!symbol) continue;
 
-      if (symbol === "USDT") out.usdt = uiAmount;
-      if (symbol === "USDC") out.usdc = uiAmount;
+      for (const token of tokens) {
+        if (mint.toLowerCase() === token.contract.toLowerCase()) {
+          out[token.symbol] = (out[token.symbol] ?? 0) + uiAmount;
+        }
+      }
     }
 
     return out;
@@ -93,18 +91,23 @@ export const getSplBalances = async (
 export const scanSolanaAddresses = async (
   rpcUrl: string,
   addresses: string[],
-  mintAddresses: Record<string, string>,
-  maxConcurrent = 5,
-  intervalMs = 100
+  tokens: TokenConfig[],
+  maxConcurrent = 1,
+  intervalMs = 3000
 ): Promise<SolanaAddressBalance[]> => {
   const semaphore = new Semaphore(maxConcurrent);
 
   const tasks = addresses.map((address) =>
     semaphore.withLock(async () => {
       const sol = await getSolBalance(rpcUrl, address);
-      const spl = await getSplBalances(rpcUrl, address, mintAddresses);
+      const spl = await getSplBalances(rpcUrl, address, tokens);
       if (intervalMs > 0) await sleep(intervalMs);
-      return { address, sol, usdt: spl.usdt, usdc: spl.usdc };
+      return {
+        address,
+        sol,
+        usdt: spl.USDT ?? 0.0,
+        usdc: spl.USDC ?? 0.0,
+      };
     })
   );
 
@@ -114,4 +117,3 @@ export const scanSolanaAddresses = async (
     return { address: addresses[i] ?? "", sol: 0.0, usdt: 0.0, usdc: 0.0 };
   });
 };
-

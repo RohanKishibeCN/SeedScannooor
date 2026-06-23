@@ -16,4 +16,3 @@ describe("solana", () => {
     expect(res).toBe(0.0);
   });
 });
-

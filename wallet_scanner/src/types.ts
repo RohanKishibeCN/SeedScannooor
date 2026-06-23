@@ -2,8 +2,13 @@ export type Chain = "ethereum" | "bsc" | "polygon" | "arbitrum" | "base" | "sola
 
 export type Prices = Record<string, number>;
 
+export interface TokenConfig {
+  symbol: string;
+  contract: string;
+}
+
 export interface Config {
-  tatumApiKey: string;
+  etherscanApiKey: string;
   heliusRpcUrl: string;
   notionApiKey: string;
   notionDatabaseId: string;
@@ -13,6 +18,9 @@ export interface Config {
   thresholdUsd: number;
   maxConcurrent: number;
   scanIntervalMs: number;
+  etherscanIntervalMs: number;
+  ethTokens: TokenConfig[];
+  solTokens: TokenConfig[];
 }
 
 export interface EvmAddressBalance {
@@ -61,4 +69,3 @@ export interface NotionPageData {
   total_usd: number;
   snapshot_time: string;
 }
-

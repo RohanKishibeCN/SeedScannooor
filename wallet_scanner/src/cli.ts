@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import path from "node:path";
 import process from "node:process";
 import { Command } from "commander";
 import cliProgress from "cli-progress";
@@ -8,15 +9,10 @@ import { scanEvmAddresses } from "./evm.js";
 import { calculateTotalUsd, getPrices, shouldKeep } from "./filter.js";
 import { deriveAddresses, loadMnemonics } from "./mnemonic.js";
 import { batchWriteToNotion } from "./notion.js";
-import { aggregateResults, formatFilename, getTimestamp, writeCsvOutput, writeJsonOutput } from "./output.js";
+import { aggregateResults, formatFilename, getTimestamp, writeCsvOutput } from "./output.js";
 import { scanSolanaAddresses } from "./solana.js";
-import type { Chain, NotionPageData } from "./types.js";
+import type { AggregatedResult, Chain, NotionPageData } from "./types.js";
 import { ShutdownFlag } from "./utils.js";
-
-const SOLANA_MINT_ADDRESSES = {
-  USDT: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
-  USDC: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDg1v"
-};
 
 const parseChains = (chainsInput?: string): Chain[] | undefined => {
   if (!chainsInput) return undefined;
@@ -59,16 +55,19 @@ const scanMnemonic = async (
   chains: Chain[],
   depth: number,
   maxConcurrent: number,
-  intervalMs: number,
-  tatumApiKey: string,
+  scanIntervalMs: number,
+  etherscanApiKey: string,
+  etherscanIntervalMs: number,
   heliusRpcUrl: string,
+  ethTokens: any[],
+  solTokens: any[],
   prices: Record<string, number>,
   thresholdUsd: number,
   shutdown: ShutdownFlag
 ): Promise<{ allAddresses: Record<string, any[]>; totalUsd: number } | null> => {
   if (shutdown.isRequested()) return null;
 
-  const derived = deriveAddresses(mnemonicStr, depth);
+  const derived = deriveAddresses(mnemonicStr, chains, depth);
 
   const evmChains = chains.filter((c) => c !== "solana");
   const scanSolana = chains.includes("solana");
@@ -79,7 +78,7 @@ const scanMnemonic = async (
     const addrs = derived[chain];
     if (addrs && addrs.length > 0) {
       tasks.push(
-        scanEvmAddresses(tatumApiKey, addrs, chain, maxConcurrent, intervalMs).then((r) => [chain, r])
+        scanEvmAddresses(etherscanApiKey, addrs, ethTokens, etherscanIntervalMs).then((r) => [chain, r])
       );
     }
   }
@@ -88,7 +87,7 @@ const scanMnemonic = async (
     const addrs = derived.solana;
     if (addrs && addrs.length > 0) {
       tasks.push(
-        scanSolanaAddresses(heliusRpcUrl, addrs, SOLANA_MINT_ADDRESSES, maxConcurrent, intervalMs).then(
+        scanSolanaAddresses(heliusRpcUrl, addrs, solTokens, maxConcurrent, scanIntervalMs).then(
           (r) => ["solana", r]
         )
       );
@@ -129,14 +128,14 @@ const main = async (): Promise<void> => {
   const program = new Command();
   program
     .name("wallet-scanner")
-    .description("Wallet Scanner - 扫描加密货币钱包余额")
-    .requiredOption("--mnemonic-file <path>", "助记词文件路径（每行一条）")
-    .option("--config <path>", "YAML 配置文件路径（可选）")
-    .option("--chains <chains>", "扫描的链列表，逗号分隔，如 ethereum,bsc,solana")
-    .option("--depth <number>", "派生地址数量（默认从 .env 的 SCAN_DEPTH 读取）", (v) => Number.parseInt(v, 10))
-    .option("--output-dir <path>", "输出目录（默认 ./results）", "./results")
-    .option("--threshold <number>", "USD 阈值（默认从 .env 的 THRESHOLD_USD 读取）", (v) => Number.parseFloat(v))
-    .option("--notion-only", "仅写入 Notion（跳过本地文件输出）", false);
+    .description("Wallet Scanner - scan crypto wallet balances")
+    .requiredOption("--mnemonic-file <path>", "path to mnemonic file (one per line)")
+    .option("--config <path>", "YAML config file path (optional)")
+    .option("--chains <chains>", "comma-separated chains to scan, e.g. ethereum,bsc,solana")
+    .option("--depth <number>", "derivation depth (default from .env SCAN_DEPTH)", (v) => Number.parseInt(v, 10))
+    .option("--output-dir <path>", "output directory (default ./results)", "./results")
+    .option("--threshold <number>", "USD threshold (default from .env THRESHOLD_USD)", (v) => Number.parseFloat(v))
+    .option("--notion-only", "write to Notion only (skip local file output)", false);
 
   program.parse(process.argv);
   const opts = program.opts<{
@@ -161,25 +160,24 @@ const main = async (): Promise<void> => {
 
   const mnemonics = loadMnemonics(opts.mnemonicFile);
   if (mnemonics.length === 0) {
-    console.log("未找到助记词或文件为空");
+    console.log("No mnemonics found or file is empty");
+    process.exitCode = 0;
     return;
   }
 
-  console.log(`加载了 ${mnemonics.length} 条助记词`);
-  console.log(`扫描链: ${cfg.chains.join(", ")}`);
-  console.log(`派生深度: ${cfg.depth}`);
-  console.log(`USD 阈值: $${cfg.thresholdUsd}`);
+  console.log(`Loaded ${mnemonics.length} mnemonics`);
+  console.log(`Chains: ${cfg.chains.join(", ")}`);
+  console.log(`Depth: ${cfg.depth}`);
+  console.log(`USD threshold: $${cfg.thresholdUsd}`);
+  console.log(`Etherscan tokens: ${cfg.ethTokens.map((t) => t.symbol).join(", ")}`);
+  if (cfg.chains.includes("solana")) {
+    console.log(`Solana tokens: ${cfg.solTokens.map((t) => t.symbol).join(", ")}`);
+  }
 
   const prices = await getPrices();
   console.log(
-    `当前价格: ETH=$${(prices.ethereum ?? 0).toFixed(2)}, SOL=$${(prices.solana ?? 0).toFixed(2)}, USDT=$${(prices.tether ?? 0).toFixed(4)}`
+    `Prices: ETH=$${(prices.ethereum ?? 0).toFixed(2)}, SOL=$${(prices.solana ?? 0).toFixed(2)}, USDT=$${(prices.tether ?? 0).toFixed(4)}`
   );
-
-  fs.mkdirSync(cfg.outputDir, { recursive: true });
-
-  const results: any[] = [];
-  const notionPages: NotionPageData[] = [];
-  let passedCount = 0;
 
   const snapshotTime = getTimestamp();
   const shutdown = new ShutdownFlag();
@@ -187,12 +185,19 @@ const main = async (): Promise<void> => {
   const onSignal = () => {
     if (!shutdown.isRequested()) {
       shutdown.request();
-      process.stdout.write("\n收到退出信号，正在完成当前任务后退出...\n");
+      process.stdout.write("\nReceived shutdown signal, finishing current task...\n");
     }
   };
 
   process.on("SIGINT", onSignal);
   process.on("SIGTERM", onSignal);
+
+  fs.mkdirSync(cfg.outputDir, { recursive: true });
+
+  const jsonlPath = path.join(cfg.outputDir, `${formatFilename()}_scan_results.jsonl`);
+
+  const notionPages: NotionPageData[] = [];
+  let passedCount = 0;
 
   const isTty = Boolean(process.stdout.isTTY);
   const bar = isTty
@@ -224,8 +229,11 @@ const main = async (): Promise<void> => {
       cfg.depth,
       cfg.maxConcurrent,
       cfg.scanIntervalMs,
-      cfg.tatumApiKey,
+      cfg.etherscanApiKey,
+      cfg.etherscanIntervalMs,
       cfg.heliusRpcUrl,
+      cfg.ethTokens,
+      cfg.solTokens,
       prices,
       cfg.thresholdUsd,
       shutdown
@@ -242,10 +250,12 @@ const main = async (): Promise<void> => {
         addr.total_usd_value = totalUsd;
       }
 
+      // Immediate JSONL write
+      const jsonlLine = JSON.stringify(aggregated) + "\n";
+      fs.appendFileSync(jsonlPath, jsonlLine, "utf-8");
+
       if (opts.notionOnly) {
         notionPages.push(...buildNotionPages(allAddresses, totalUsd, lineNum, snapshotTime));
-      } else {
-        results.push(aggregated);
       }
     }
   }
@@ -254,9 +264,9 @@ const main = async (): Promise<void> => {
     bar.stop();
   }
 
-  const scanTimeStr = getTimestamp();
+  // Notion batch write
   if (notionPages.length > 0) {
-    console.log("\n正在写入 Notion...");
+    console.log("\nWriting to Notion...");
     const { success, failed } = await batchWriteToNotion(
       cfg.notionApiKey,
       cfg.notionDatabaseId,
@@ -267,24 +277,43 @@ const main = async (): Promise<void> => {
     console.log(`Notion written: ${success} pages (${failed} failed)`);
   }
 
-  let jsonPath: string | undefined;
+  // Final output
+  const scanTimeStr = getTimestamp();
   let csvPath: string | undefined;
 
-  if (!opts.notionOnly && results.length > 0) {
-    jsonPath = writeJsonOutput(cfg.outputDir, results, cfg.thresholdUsd, scanTimeStr);
-    csvPath = writeCsvOutput(cfg.outputDir, results, scanTimeStr);
+  if (!opts.notionOnly) {
+    const results: AggregatedResult[] = [];
+
+    // Read back from JSONL for CSV output
+    try {
+      const jsonlContent = fs.readFileSync(jsonlPath, "utf-8");
+      const lines = jsonlContent.split("\n").filter(Boolean);
+      for (const line of lines) {
+        try {
+          results.push(JSON.parse(line));
+        } catch {
+          // skip malformed lines
+        }
+      }
+    } catch {
+      // jsonl file might not exist
+    }
+
+    if (results.length > 0) {
+      csvPath = writeCsvOutput(cfg.outputDir, results, scanTimeStr);
+    }
   }
 
-  const totalScanned = opts.notionOnly ? passedCount : results.length;
+  const totalScanned = opts.notionOnly ? passedCount : 0;
 
   console.log("\nScan complete!");
-  console.log(`Total scanned: ${totalScanned}`);
+  console.log(`Total mnemonics scanned: ${mnemonics.length}`);
   console.log(`Passed threshold: ${passedCount}`);
-  if (jsonPath) console.log(`JSON output: ${jsonPath}`);
   if (csvPath) console.log(`CSV output: ${csvPath}`);
+  if (jsonlPath && fs.existsSync(jsonlPath)) console.log(`JSONL output: ${jsonlPath}`);
 };
 
 main().catch((e) => {
-  process.stderr.write(`\n发生错误: ${String(e)}\n`);
+  process.stderr.write(`\nError: ${String(e)}\n`);
   process.exitCode = 1;
 });

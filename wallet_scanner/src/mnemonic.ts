@@ -14,11 +14,14 @@ const EVM_CHAINS: Exclude<Chain, "solana">[] = [
   "base"
 ];
 
-const deriveEvmAddresses = (mnemonic: string, depth: number): Record<string, string[]> => {
+const deriveEvmAddresses = (mnemonic: string, chains: Chain[], depth: number): Record<string, string[]> => {
+  const evmChains = chains.filter((c) => c !== "solana");
+  if (evmChains.length === 0) return {};
+
   const root = HDNodeWallet.fromPhrase(mnemonic, undefined, "m");
   const out: Record<string, string[]> = {};
 
-  for (const chain of EVM_CHAINS) {
+  for (const chain of evmChains) {
     const addresses: string[] = [];
     for (let i = 0; i < depth; i += 1) {
       const child = root.derivePath(`m/44'/60'/0'/0/${i}`);
@@ -46,30 +49,38 @@ const deriveSolanaAddresses = (mnemonic: string, depth: number): string[] => {
 
 export const deriveAddresses = (
   mnemonic: string,
-  depth = 20
+  chains: Chain[],
+  depth = 5
 ): Record<Chain, string[]> => {
   if (!bip39.validateMnemonic(mnemonic)) {
-    return {
-      ethereum: [],
-      bsc: [],
-      polygon: [],
-      arbitrum: [],
-      base: [],
-      solana: []
-    };
+    const empty: Record<string, string[]> = {};
+    for (const c of chains) {
+      empty[c] = [];
+    }
+    return empty as Record<Chain, string[]>;
   }
 
-  const evm = deriveEvmAddresses(mnemonic, depth);
-  const sol = deriveSolanaAddresses(mnemonic, depth);
+  const out: Record<string, string[]> = {};
 
-  return {
-    ethereum: evm.ethereum ?? [],
-    bsc: evm.bsc ?? [],
-    polygon: evm.polygon ?? [],
-    arbitrum: evm.arbitrum ?? [],
-    base: evm.base ?? [],
-    solana: sol
-  };
+  const solanaEnabled = chains.includes("solana");
+  const evmEnabled = chains.filter((c) => c !== "solana");
+
+  if (evmEnabled.length > 0) {
+    const evm = deriveEvmAddresses(mnemonic, chains, depth);
+    for (const [chain, addrs] of Object.entries(evm)) {
+      out[chain] = addrs;
+    }
+  }
+
+  if (solanaEnabled) {
+    out.solana = deriveSolanaAddresses(mnemonic, depth);
+  }
+
+  for (const c of chains) {
+    if (!out[c]) out[c] = [];
+  }
+
+  return out as Record<Chain, string[]>;
 };
 
 export const loadMnemonics = (filePath: string): Array<[number, string]> => {
@@ -90,4 +101,3 @@ export const loadMnemonics = (filePath: string): Array<[number, string]> => {
     return [];
   }
 };
-

@@ -12,16 +12,18 @@ echo "======================================"
 # --- 1. 检测并安装依赖 ---
 echo "[1/7] 检查系统依赖..."
 if ! command -v node &>/dev/null; then
-    echo "错误: 未找到 Node.js，请先安装 Node.js 20.20.2+"
-    exit 1
-fi
-if ! command -v npm &>/dev/null; then
-    echo "错误: 未找到 npm，请先安装 npm"
+    echo "错误: 未找到 Node.js，请先安装 Node.js 20+"
     exit 1
 fi
 
 NODE_VERSION=$(node --version 2>&1)
-echo "  Node 版本: $NODE_VERSION"
+NODE_MAJOR=$(echo "$NODE_VERSION" | sed -n 's/v\([0-9]*\)\..*/\1/p')
+if [ -z "$NODE_MAJOR" ] || [ "$NODE_MAJOR" -lt 20 ]; then
+    echo "错误: 需要 Node.js 20+，当前版本: $NODE_VERSION"
+    echo "请使用 nvm 安装: nvm install 20"
+    exit 1
+fi
+echo "  Node 版本: $NODE_VERSION ✅"
 
 # --- 2. 仓库路径配置 ---
 echo "[2/7] 配置仓库路径..."
@@ -66,20 +68,20 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "=========================================="
     echo ""
     echo "【必需】API 密钥："
-    echo "  TATUM_API_KEY       # EVM 聚合余额（https://tatum.io/）"
-    echo "  HELIUS_RPC_URL     # Solana RPC（https://helius.xyz/）"
+    echo "  ETHERSCAN_API_KEY   # ETH/USDT/USDC 余额查询（https://etherscan.io/myapikey）"
+    echo "  HELIUS_RPC_URL      # Solana RPC（https://helius.xyz/）"
     echo "  NOTION_API_KEY, NOTION_DATABASE_ID"
     echo ""
     echo "【可选】扫描参数（不填则用默认值）："
-    echo "  SCAN_DEPTH=10        # 每条助记词派生多少个地址"
-    echo "  THRESHOLD_USD=10.0   # 余额阈值（USD），>= 此值才写 Notion"
+    echo "  SCAN_DEPTH=5         # 每条助记词派生多少个地址"
+    echo "  THRESHOLD_USD=5.0    # 余额阈值（USD），>= 此值才写 Notion"
     echo ""
     echo "按回车继续（配置完成后）..."
     read -r
 fi
 
 # --- 5. 测试运行 ---
-echo "[5/7] 测试运行（2 条助记词 x 2 个地址）..."
+echo "[5/7] 测试运行（2 条助记词 x depth=2）..."
 node dist/cli.js \
     --mnemonic-file "$MNEMONIC_FILE" \
     --chains ethereum,solana \
@@ -135,8 +137,9 @@ echo "  📁 输出:     $PROJECT_DIR/results/"
 echo "  📝 失败重试: $PROJECT_DIR/failed_notion_writes.jsonl"
 echo ""
 echo "  📌 可调参数（在 .env 中修改，次日生效）："
-echo "     SCAN_DEPTH=20      # 每条助记词派生的地址数量"
-echo "     THRESHOLD_USD=10.0 # 余额阈值（USD）"
+echo "     SCAN_DEPTH=5        # 每条助记词派生的地址数量"
+echo "     THRESHOLD_USD=5.0   # 余额阈值（USD）"
+echo "     ETHERSCAN_INTERVAL_MS=350  # Etherscan 调用间隔"
 echo ""
 echo "  查看日志: tail -f /var/log/wallet_scanner.log"
 echo "  手动运行: cd $PROJECT_DIR && node dist/cli.js --mnemonic-file $MNEMONIC_FILE"

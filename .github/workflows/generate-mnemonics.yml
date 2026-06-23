@@ -27,10 +27,12 @@ jobs:
         run: git checkout main
 
       - name: Generate mnemonics
+        env:
+          MNEMONICS_COUNT: ${{ github.event.inputs.count || vars.MNEMONICS_COUNT || 2000 }}
         run: |
           npm ci --prefix wallet_scanner
           npm run build --prefix wallet_scanner
-          node wallet_scanner/dist/generate-mnemonics.js mnemonics.txt 100
+          node wallet_scanner/dist/generate-mnemonics.js mnemonics.txt $MNEMONICS_COUNT
 
       - name: Commit and push changes
         env:

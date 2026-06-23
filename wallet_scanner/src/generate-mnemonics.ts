@@ -3,7 +3,10 @@ import process from "node:process";
 import bip39 from "bip39";
 
 const outputFile = process.argv[2] ?? "mnemonics.txt";
-const count = Number.parseInt(process.argv[3] ?? "100", 10);
+
+const cliCount = process.argv[3];
+const envCount = process.env.MNEMONICS_COUNT;
+const count = Number.parseInt(cliCount ?? envCount ?? "2000", 10);
 
 if (!Number.isFinite(count) || count <= 0) {
   process.stderr.write(`Invalid count: ${process.argv[3]}\n`);

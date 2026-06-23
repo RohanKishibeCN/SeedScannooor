@@ -46,6 +46,26 @@ detect_chains() {
   if [ -n "$enabled" ]; then echo "$enabled"; else echo "ethereum,solana"; fi
 }
 
+detect_eth_tokens() {
+  local v
+  v="$(env_get "ETH_TOKENS")"
+  if [ -n "$v" ]; then
+    echo "$v" | sed 's/,[^=]*=/ /g; s/^\([^=]*\)=.*/\1/' | tr ',' ' '
+  else
+    echo "USDT USDC"
+  fi
+}
+
+detect_sol_tokens() {
+  local v
+  v="$(env_get "SOL_TOKENS")"
+  if [ -n "$v" ]; then
+    echo "$v" | sed 's/,[^=]*=/ /g; s/^\([^=]*\)=.*/\1/' | tr ',' ' '
+  else
+    echo "USDT USDC"
+  fi
+}
+
 tmp_run_block="$(mktemp)"
 trap 'rm -f "${tmp_run_block}"' EXIT
 
@@ -114,10 +134,10 @@ if [ -f "${MNEMONICS_FILE}" ]; then
   if [ -z "${mn_hash}" ]; then mn_hash="-"; fi
 fi
 
-loaded_mnemonics="$(grep -E "加载了 [0-9]+ 条助记词" "${tmp_run_block}" | tail -n 1 | sed -n 's/加载了 \([0-9]\+\) 条助记词/\1/p' || true)"
+loaded_mnemonics="$(grep -E "Loaded [0-9]+ mnemonics" "${tmp_run_block}" | tail -n 1 | sed -n 's/Loaded \([0-9]\+\) mnemonics/\1/p' || true)"
 if [ -z "${loaded_mnemonics}" ]; then loaded_mnemonics="-"; fi
 
-total_scanned="$(grep -E "^Total scanned:" "${tmp_run_block}" | tail -n 1 | awk '{print $3}' || true)"
+total_scanned="$(grep -E "^Total mnemonics scanned:" "${tmp_run_block}" | tail -n 1 | awk '{print $4}' || true)"
 if [ -z "${total_scanned}" ]; then total_scanned="-"; fi
 
 passed_threshold="$(grep -E "^Passed threshold:" "${tmp_run_block}" | tail -n 1 | awk '{print $3}' || true)"
@@ -128,17 +148,17 @@ if [ "${loaded_mnemonics}" != "-" ] && [ "${passed_threshold}" != "-" ] && [ "${
   pass_rate="$(awk -v p="${passed_threshold}" -v t="${loaded_mnemonics}" 'BEGIN{printf "%.3f%%", (p/t)*100}')"
 fi
 
-json_path="$(grep -E "^JSON output:" "${tmp_run_block}" | tail -n 1 | sed -n 's/^JSON output:[[:space:]]*//p' || true)"
+jsonl_path="$(grep -E "^JSONL output:" "${tmp_run_block}" | tail -n 1 | sed -n 's/^JSONL output:[[:space:]]*//p' || true)"
 csv_path="$(grep -E "^CSV output:" "${tmp_run_block}" | tail -n 1 | sed -n 's/^CSV output:[[:space:]]*//p' || true)"
 
-if [ -z "${json_path}" ] && [ -d "${OUTPUT_DIR}" ]; then
-  json_path="$(ls -1t "${OUTPUT_DIR}"/*_scan_results.json 2>/dev/null | head -n 1 || true)"
+if [ -z "${jsonl_path}" ] && [ -d "${OUTPUT_DIR}" ]; then
+  jsonl_path="$(ls -1t "${OUTPUT_DIR}"/*_scan_results.jsonl 2>/dev/null | head -n 1 || true)"
 fi
 if [ -z "${csv_path}" ] && [ -d "${OUTPUT_DIR}" ]; then
   csv_path="$(ls -1t "${OUTPUT_DIR}"/*_scan_results.csv 2>/dev/null | head -n 1 || true)"
 fi
 
-if [ -n "${json_path}" ]; then json_path="${json_path#${REPO_DIR}/}"; else json_path="-"; fi
+if [ -n "${jsonl_path}" ]; then jsonl_path="${jsonl_path#${REPO_DIR}/}"; else jsonl_path="-"; fi
 if [ -n "${csv_path}" ]; then csv_path="${csv_path#${REPO_DIR}/}"; else csv_path="-"; fi
 
 notion_enabled="false"; notion_success="-"; notion_failed="-"
@@ -151,11 +171,10 @@ if [ -n "${notion_line}" ]; then
   if [ -z "${notion_failed}" ]; then notion_failed="-"; fi
 fi
 
-error_unhandled="$(grep -E "发生错误:" "${tmp_run_block}" | tail -n 1 | sed -n 's/^.*发生错误:[[:space:]]*//p' || true)"
+error_unhandled="$(grep -E "Error:" "${tmp_run_block}" | tail -n 1 | sed -n 's/^.*Error:[[:space:]]*//p' || true)"
 if [ -z "${error_unhandled}" ]; then error_unhandled="none"; fi
 
-tatum_400="$(grep -cE "status=400" "${tmp_run_block}" 2>/dev/null || true)"
-rate_limited="$(grep -cE "status=429" "${tmp_run_block}" 2>/dev/null || true)"
+etherscan_400="$(grep -cE "status=400" "${tmp_run_block}" 2>/dev/null || true)"
 timeout_cnt="$(grep -cE "AbortError|timeout" "${tmp_run_block}" 2>/dev/null || true)"
 other_err="$(grep -cE "status=4[0-9]{2}|status=5[0-9]{2}" "${tmp_run_block}" 2>/dev/null || true)"
 
@@ -170,35 +189,109 @@ last_success_utc="$(echo "${last_success_run}" | awk '{print $2}' || true)"
 if is_iso_utc "${last_success_candidate}"; then last_success_utc="${last_success_candidate}"; fi
 if [ -z "${last_success_utc}" ]; then last_success_utc="-"; fi
 
-depth="$(env_get SCAN_DEPTH)"; if [ -z "${depth}" ]; then depth="20"; fi
-threshold="$(env_get THRESHOLD_USD)"; if [ -z "${threshold}" ]; then threshold="10.0"; fi
-max_conc="$(env_get MAX_CONCURRENT)"; if [ -z "${max_conc}" ]; then max_conc="10"; fi
-interval_ms="$(env_get SCAN_INTERVAL_MS)"; if [ -z "${interval_ms}" ]; then interval_ms="100"; fi
+depth="$(env_get SCAN_DEPTH)"; if [ -z "${depth}" ]; then depth="5"; fi
+threshold="$(env_get THRESHOLD_USD)"; if [ -z "${threshold}" ]; then threshold="5.0"; fi
+max_conc="$(env_get MAX_CONCURRENT)"; if [ -z "${max_conc}" ]; then max_conc="1"; fi
+interval_ms="$(env_get SCAN_INTERVAL_MS)"; if [ -z "${interval_ms}" ]; then interval_ms="3000"; fi
+etherscan_interval="$(env_get ETHERSCAN_INTERVAL_MS)"; if [ -z "${etherscan_interval}" ]; then etherscan_interval="350"; fi
 chains="$(detect_chains)"
+eth_tokens="$(detect_eth_tokens)"
+sol_tokens="$(detect_sol_tokens)"
+
+etherscan_total=$((loaded_mnemonics * depth * 2 + (loaded_mnemonics * depth + 19) / 20))
+if [ "${etherscan_total}" -le 0 ] 2>/dev/null; then etherscan_total=0; fi
+
+# Calculate duration in seconds for the front matter
+duration_from_log=0
+if [ -n "${start_utc}" ] && [ -n "${end_utc}" ] && [ "${start_utc}" != "-" ] && [ "${end_utc}" != "-" ]; then
+  ds="$(to_epoch "${start_utc}")"
+  de="$(to_epoch "${end_utc}")"
+  if [ -n "${ds}" ] && [ -n "${de}" ]; then
+    duration_from_log=$((de - ds))
+    if [ "${duration_from_log}" -lt 0 ]; then duration_from_log=0; fi
+  fi
+fi
 
 stats_path="${SCRIPT_DIR}/stats.md"
 {
+  # YAML front matter for AI parsing
+  echo "---"
+  echo "scan_status: \"${status}\""
+  echo "scan_date_utc: \"${end_utc:-${start_utc:-${RUN_ID}}}\""
+  echo "duration_seconds: ${duration_from_log}"
+  echo "mnemonics_count: ${loaded_mnemonics}"
+  echo "mnemonics_hash: \"${mn_hash}\""
+  echo "depth: ${depth}"
+  echo "chains: [${chains}]"
+  echo "eth_tokens: [${eth_tokens}]"
+  echo "sol_tokens: [${sol_tokens}]"
+  echo "total_addresses_ethereum: $((loaded_mnemonics * depth))"
+  echo "total_addresses_solana: $((loaded_mnemonics * depth))"
+  echo "etherscan_calls: ${etherscan_total}"
+  echo "etherscan_calls_limit: 100000"
+  if [ "${etherscan_total}" -gt 0 ] 2>/dev/null; then
+    echo "etherscan_rate_percent: $(awk -v e="${etherscan_total}" 'BEGIN{printf "%.1f", (e/100000)*100}')"
+  else
+    echo "etherscan_rate_percent: 0"
+  fi
+  echo "notion_pages_written: ${notion_success}"
+  echo "notion_failed: ${notion_failed}"
+  echo "passed_threshold: ${passed_threshold}"
+  echo "errors: []"
+  echo "---"
+  echo
   echo "# Wallet Scanner Stats"
   echo
-  echo "## Overview"
-  echo "- Status: ${status}"
-  echo "- Last Run (UTC): ${end_utc:-${start_utc:-${RUN_ID}}}"
-  echo "- Last Success (UTC): ${last_success_utc}"
-  echo "- Duration: ${duration}"
-  echo "- Code Version: ${code_sha}"
-  echo "- Mnemonics File: lines=${mn_lines}, mtime=${mn_mtime}, hash=${mn_hash}"
+  echo "## Run Status"
+  echo "- **Status**: ${status}"
+  echo "- **Scan Time (UTC)**: ${end_utc:-${start_utc:-${RUN_ID}}}"
+  echo "- **Duration**: ${duration}"
+  echo "- **Code Version**: \`${code_sha}\`"
   echo
-  echo "## This Run"
-  echo "- Run ID: ${RUN_ID}"
-  echo "- Config: chains=${chains}; depth=${depth}; threshold_usd=${threshold}; max_concurrent=${max_conc}; interval_ms=${interval_ms}"
-  echo "- Progress: total_lines=${loaded_mnemonics}; processed_lines=${loaded_mnemonics}; passed=${passed_threshold}; pass_rate=${pass_rate}"
-  echo "- Outputs: json=${json_path}; csv=${csv_path}"
-  echo "- Notion: enabled=${notion_enabled}; success=${notion_success}; failed=${notion_failed}; failed_log=failed_notion_writes.jsonl"
+  echo "## Configuration"
+  echo "| Parameter | Value |"
+  echo "|----------|-------|"
+  echo "| Mnemonics | ${loaded_mnemonics} |"
+  echo "| Depth | ${depth} |"
+  echo "| Chains | ${chains} |"
+  echo "| ETH Tokens | ${eth_tokens} |"
+  echo "| SOL Tokens | ${sol_tokens} |"
+  echo "| Threshold (USD) | \$${threshold} |"
+  echo "| Etherscan Interval | ${etherscan_interval}ms |"
+  echo "| Solana Interval | ${interval_ms}ms |"
+  echo "| Max Concurrent | ${max_conc} |"
+  if [ "${etherscan_total}" -gt 0 ] 2>/dev/null; then
+    echo "| Etherscan Usage | ${etherscan_total} / 100,000 ($(awk -v e="${etherscan_total}" 'BEGIN{printf "%.1f", (e/100000)*100}')%) |"
+  fi
   echo
-  echo "## Errors (This Run)"
-  echo "- Tatum: http_400=${tatum_400}; rate_limited=${rate_limited}; timeout=${timeout_cnt}; other=${other_err}"
-  echo "- Unhandled Exception: ${error_unhandled}"
+  echo "## Results"
+  echo "| Metric | Value |"
+  echo "|-------|-------|"
+  echo "| Derived Addresses (ETH) | $((loaded_mnemonics * depth)) |"
+  echo "| Derived Addresses (SOL) | $((loaded_mnemonics * depth)) |"
+  echo "| Passed Threshold | ${passed_threshold} |"
+  echo "| Pass Rate | ${pass_rate} |"
+  echo "| Notion Written | ${notion_success} pages |"
+  echo "| Notion Failed | ${notion_failed} |"
   echo
-  echo "## Cumulative"
-  echo "- Total Runs: ${total_runs}"
+  echo "## Output Files"
+  echo "- JSONL: \`${jsonl_path}\`"
+  echo "- CSV: \`${csv_path}\`"
+  echo
+  if [ "${error_unhandled}" != "none" ]; then
+    echo "## Errors"
+    echo "- Unhandled: ${error_unhandled}"
+  fi
+  echo "## Etherscan Errors"
+  echo "- HTTP 400: ${etherscan_400}"
+  echo "- Timeout: ${timeout_cnt}"
+  echo "- Other: ${other_err}"
 } > "${stats_path}"
+
+# Push stats.md to GitHub
+if command -v git >/dev/null 2>&1 && [ -d "${REPO_DIR}/.git" ]; then
+  cd "${REPO_DIR}"
+  git add wallet_scanner/stats.md 2>/dev/null || true
+  git diff --staged --quiet 2>/dev/null || \
+    (git commit -m "Update stats - $(date -u +'%Y-%m-%d %H:%M:%S')" && git push) 2>/dev/null || true
+fi
