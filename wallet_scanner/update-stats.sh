@@ -50,7 +50,7 @@ detect_eth_tokens() {
   local v
   v="$(env_get "ETH_TOKENS")"
   if [ -n "$v" ]; then
-    echo "$v" | awk -F'[,=]' '{for(i=1;i<=NF;i+=2) printf "%s ", $i}'
+    echo "$v" | awk -F'[,=]' '{for(i=1;i<=NF;i+=2) printf "%s%s", (i>1?" ":""), $i}'
   else
     echo "USDT USDC"
   fi
@@ -60,7 +60,7 @@ detect_sol_tokens() {
   local v
   v="$(env_get "SOL_TOKENS")"
   if [ -n "$v" ]; then
-    echo "$v" | awk -F'[,=]' '{for(i=1;i<=NF;i+=2) printf "%s ", $i}'
+    echo "$v" | awk -F'[,=]' '{for(i=1;i<=NF;i+=2) printf "%s%s", (i>1?" ":""), $i}'
   else
     echo "USDT USDC"
   fi
