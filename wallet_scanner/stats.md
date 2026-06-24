@@ -1,1 +1,61 @@
-- Permission Test: 2026-05-09T16:36:13Z
+---
+scan_status: "RUNNING"
+scan_date_utc: "2026-06-24T08:33:23Z"
+duration_seconds: 0
+mnemonics_count: 2000
+mnemonics_hash: "865081b9"
+depth: 5
+chains: [ethereum,solana]
+eth_tokens: [USDT]
+sol_tokens: [USDT]
+total_addresses_ethereum: 10000
+total_addresses_solana: 10000
+etherscan_calls: 20500
+etherscan_calls_limit: 100000
+etherscan_rate_percent: 20.5
+notion_pages_written: -
+notion_failed: -
+passed_threshold: -
+errors: []
+---
+
+# Wallet Scanner Stats
+
+## Run Status
+- **Status**: RUNNING
+- **Scan Time (UTC)**: 2026-06-24T08:33:23Z
+- **Duration**: 00:00:00
+- **Code Version**: `3c26ebb`
+
+## Configuration
+| Parameter | Value |
+|----------|-------|
+| Mnemonics | 2000 |
+| Depth | 5 |
+| Chains | ethereum,solana |
+| ETH Tokens | USDT |
+| SOL Tokens | USDT |
+| Threshold (USD) | $5.0 |
+| Etherscan Interval | 350ms |
+| Solana Interval | 3000ms |
+| Max Concurrent | 1 |
+| Etherscan Usage | 20500 / 100,000 (20.5%) |
+
+## Results
+| Metric | Value |
+|-------|-------|
+| Derived Addresses (ETH) | 10000 |
+| Derived Addresses (SOL) | 10000 |
+| Passed Threshold | - |
+| Pass Rate | - |
+| Notion Written | - pages |
+| Notion Failed | - |
+
+## Output Files
+- JSONL: `-`
+- CSV: `-`
+
+## Etherscan Errors
+- HTTP 400: 0
+- Timeout: 0
+- Other: 0
