@@ -6,8 +6,8 @@ mnemonics_count: 2000
 mnemonics_hash: "865081b9"
 depth: 5
 chains: [ethereum,solana]
-eth_tokens: [USDT]
-sol_tokens: [USDT]
+eth_tokens: [USDT USDC ]
+sol_tokens: [USDT USDC ]
 total_addresses_ethereum: 10000
 total_addresses_solana: 10000
 etherscan_calls: 20500
@@ -25,7 +25,7 @@ errors: []
 - **Status**: RUNNING
 - **Scan Time (UTC)**: 2026-06-24T08:33:23Z
 - **Duration**: 00:00:00
-- **Code Version**: `3c26ebb`
+- **Code Version**: `704a128`
 
 ## Configuration
 | Parameter | Value |
@@ -33,8 +33,8 @@ errors: []
 | Mnemonics | 2000 |
 | Depth | 5 |
 | Chains | ethereum,solana |
-| ETH Tokens | USDT |
-| SOL Tokens | USDT |
+| ETH Tokens | USDT USDC  |
+| SOL Tokens | USDT USDC  |
 | Threshold (USD) | $5.0 |
 | Etherscan Interval | 350ms |
 | Solana Interval | 3000ms |
