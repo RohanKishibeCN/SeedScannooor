@@ -1,13 +1,13 @@
 ---
-scan_status: "RUNNING"
-scan_date_utc: "2026-06-24T08:33:23Z"
-duration_seconds: 0
+scan_status: "SUCCESS"
+scan_date_utc: "2026-06-25T00:49:16Z"
+duration_seconds: 9846
 mnemonics_count: 2000
 mnemonics_hash: "865081b9"
 depth: 5
 chains: [ethereum,solana]
-eth_tokens: [USDT USDC ]
-sol_tokens: [USDT USDC ]
+eth_tokens: [USDT USDC]
+sol_tokens: [USDT USDC]
 total_addresses_ethereum: 10000
 total_addresses_solana: 10000
 etherscan_calls: 20500
@@ -15,17 +15,17 @@ etherscan_calls_limit: 100000
 etherscan_rate_percent: 20.5
 notion_pages_written: -
 notion_failed: -
-passed_threshold: -
+passed_threshold: 0
 errors: []
 ---
 
 # Wallet Scanner Stats
 
 ## Run Status
-- **Status**: RUNNING
-- **Scan Time (UTC)**: 2026-06-24T08:33:23Z
-- **Duration**: 00:00:00
-- **Code Version**: `704a128`
+- **Status**: SUCCESS
+- **Scan Time (UTC)**: 2026-06-25T00:49:16Z
+- **Duration**: 02:44:06
+- **Code Version**: `579295f`
 
 ## Configuration
 | Parameter | Value |
@@ -33,8 +33,8 @@ errors: []
 | Mnemonics | 2000 |
 | Depth | 5 |
 | Chains | ethereum,solana |
-| ETH Tokens | USDT USDC  |
-| SOL Tokens | USDT USDC  |
+| ETH Tokens | USDT USDC |
+| SOL Tokens | USDT USDC |
 | Threshold (USD) | $5.0 |
 | Etherscan Interval | 350ms |
 | Solana Interval | 3000ms |
@@ -46,8 +46,8 @@ errors: []
 |-------|-------|
 | Derived Addresses (ETH) | 10000 |
 | Derived Addresses (SOL) | 10000 |
-| Passed Threshold | - |
-| Pass Rate | - |
+| Passed Threshold | 0 |
+| Pass Rate | 0.000% |
 | Notion Written | - pages |
 | Notion Failed | - |
 
