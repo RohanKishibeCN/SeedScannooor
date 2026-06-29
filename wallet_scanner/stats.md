@@ -1,9 +1,9 @@
 ---
 scan_status: "SUCCESS"
-scan_date_utc: "2026-06-25T00:49:16Z"
-duration_seconds: 9846
+scan_date_utc: "2026-06-29T00:48:02Z"
+duration_seconds: 9772
 mnemonics_count: 2000
-mnemonics_hash: "865081b9"
+mnemonics_hash: "cdb66960"
 depth: 5
 chains: [ethereum,solana]
 eth_tokens: [USDT USDC]
@@ -23,9 +23,9 @@ errors: []
 
 ## Run Status
 - **Status**: SUCCESS
-- **Scan Time (UTC)**: 2026-06-25T00:49:16Z
-- **Duration**: 02:44:06
-- **Code Version**: `579295f`
+- **Scan Time (UTC)**: 2026-06-29T00:48:02Z
+- **Duration**: 02:42:52
+- **Code Version**: `1990d3c`
 
 ## Configuration
 | Parameter | Value |
