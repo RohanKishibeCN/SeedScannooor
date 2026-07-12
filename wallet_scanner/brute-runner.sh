@@ -64,6 +64,7 @@ if [ "$de" -gt "$ds" ] 2>/dev/null; then duration_sec=$((de - ds)); fi
 
 printf -v duration_fmt "%02d:%02d:%02d" $((duration_sec/3600)) $(((duration_sec%3600)/60)) $((duration_sec%60))
 
+# ── Write brute-stats.md (independent file for backward compat) ──
 {
   echo "---"
   echo "scan_status: \"SUCCESS\""
@@ -105,12 +106,47 @@ printf -v duration_fmt "%02d:%02d:%02d" $((duration_sec/3600)) $(((duration_sec%
   fi
 } > "$BRUTE_STATS_FILE"
 
-# Push brute-stats.md to GitHub
+# ── Merge brute-force results into stats.md (single-file reading) ──
+STATS_FILE="$PROJECT_DIR/stats.md"
+if [ -f "$STATS_FILE" ]; then
+  # Extract YAML body (lines after second ---)
+  body=$(awk 'BEGIN{c=0} /^---/{c++;next} c>=2{print}' "$STATS_FILE" 2>/dev/null || true)
+
+  # Rebuild stats.md: keep original, append brute force section
+  {
+    # Print everything up to (and including) the "## Etherscan Errors" line
+    echo "$body" | awk 'BEGIN{found=0} /^## / && !found{found=1; print; next} !found{print}'
+    echo ""
+    echo "---"
+    echo ""
+    echo "# Brute Force"
+    echo ""
+    echo "## Status"
+    echo "- **Status**: SUCCESS"
+    echo "- **Scan Time (UTC)**: ${end_utc}"
+    echo "- **Duration**: ${duration_fmt}"
+    echo "- **Prefix**: fault door pride design claw naive raccoon price"
+    echo ""
+    echo "## Results"
+    echo "| Metric | Value |"
+    echo "|-------|-------|"
+    echo "| Mnemonics Scanned | ${loaded_mnemonics} |"
+    echo "| Passed Threshold | ${passed} |"
+    echo "| Etherscan Usage | $(awk "BEGIN{printf \"%.0f\", ${loaded_mnemonics:-0}/20 + ${loaded_mnemonics:-0}*2}") / 100,000 calls |"
+    if [ "${passed}" -gt 0 ] 2>/dev/null; then
+      echo ""
+      echo "## ⚡ **FOUND A WALLET WITH BALANCE!** ⚡"
+      echo "Check wallet_scanner/brute_results/ directory for details."
+    fi
+  } > "$STATS_FILE"
+fi
+
+# Push both stats files to GitHub
 if command -v git >/dev/null 2>&1 && [ -d "${REPO_DIR}/.git" ]; then
   cd "${REPO_DIR}"
-  git add wallet_scanner/brute-stats.md 2>/dev/null || true
+  git add wallet_scanner/stats.md wallet_scanner/brute-stats.md 2>/dev/null || true
   git diff --staged --quiet 2>/dev/null || \
-    (git commit -m "Update brute-stats - $(date -u +'%Y-%m-%d %H:%M:%S')" && git push) 2>/dev/null || true
+    (git commit -m "Update stats + brute-stats - $(date -u +'%Y-%m-%d %H:%M:%S')" && git push) 2>/dev/null || true
 fi
 
 exit 0
