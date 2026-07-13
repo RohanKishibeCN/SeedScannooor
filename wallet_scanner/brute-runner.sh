@@ -8,7 +8,7 @@ set -e
 REPO_DIR=/root/SeedScannooor
 PROJECT_DIR=/root/SeedScannooor/wallet_scanner
 BRUTE_FILE=/root/SeedScannooor/bruteforce_mnemonics.txt
-LOG_FILE=/var/log/wallet_scanner.log
+LOG_FILE=/var/log/wallet_scanner_brute.log
 BRUTE_STATS_FILE="$PROJECT_DIR/brute-stats.md"
 
 cd "$REPO_DIR" && git pull --rebase --quiet
@@ -138,7 +138,7 @@ if [ -f "$STATS_FILE" ]; then
       echo "## ⚡ **FOUND A WALLET WITH BALANCE!** ⚡"
       echo "Check wallet_scanner/brute_results/ directory for details."
     fi
-  } > "$STATS_FILE"
+  } >> "$STATS_FILE"
 fi
 
 # Push both stats files to GitHub
