@@ -1,21 +1,61 @@
+---
+scan_status: "SUCCESS"
+scan_date_utc: "2026-07-14T08:50:07Z"
+duration_seconds: 9898
+mnemonics_count: 2000
+mnemonics_hash: "e81bd8e0"
+depth: 5
+chains: [ethereum,solana]
+eth_tokens: [USDT USDC]
+sol_tokens: [USDT USDC]
+total_addresses_ethereum: 10000
+total_addresses_solana: 10000
+etherscan_calls: 20500
+etherscan_calls_limit: 100000
+etherscan_rate_percent: 20.5
+notion_pages_written: -
+notion_failed: -
+passed_threshold: 0
+errors: []
+---
 
 # Wallet Scanner Stats
 
 ## Run Status
-
----
-
-# Brute Force
-
-## Status
 - **Status**: SUCCESS
-- **Scan Time (UTC)**: 2026-07-13T15:21:14Z
-- **Duration**: 06:51:10
-- **Prefix**: fault door pride design claw naive raccoon price
+- **Scan Time (UTC)**: 2026-07-14T08:50:07Z
+- **Duration**: 02:44:58
+- **Code Version**: `476e32d`
+
+## Configuration
+| Parameter | Value |
+|----------|-------|
+| Mnemonics | 2000 |
+| Depth | 5 |
+| Chains | ethereum,solana |
+| ETH Tokens | USDT USDC |
+| SOL Tokens | USDT USDC |
+| Threshold (USD) | $5.0 |
+| Etherscan Interval | 350ms |
+| Solana Interval | 3000ms |
+| Max Concurrent | 1 |
+| Etherscan Usage | 20500 / 100,000 (20.5%) |
 
 ## Results
 | Metric | Value |
 |-------|-------|
-| Mnemonics Scanned | 30000 |
+| Derived Addresses (ETH) | 10000 |
+| Derived Addresses (SOL) | 10000 |
 | Passed Threshold | 0 |
-| Etherscan Usage | 61500 / 100,000 calls |
+| Pass Rate | 0.000% |
+| Notion Written | - pages |
+| Notion Failed | - |
+
+## Output Files
+- JSONL: `-`
+- CSV: `-`
+
+## Etherscan Errors
+- HTTP 400: 0
+- Timeout: 0
+- Other: 0
