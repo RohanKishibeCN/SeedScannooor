@@ -1,9 +1,9 @@
 ---
 scan_status: "SUCCESS"
-scan_date_utc: "2026-07-15T08:48:25Z"
-duration_seconds: 9795
+scan_date_utc: "2026-07-16T08:52:33Z"
+duration_seconds: 10044
 mnemonics_count: 2000
-mnemonics_hash: "f15aa299"
+mnemonics_hash: "5ba4bace"
 depth: 5
 chains: [ethereum,solana]
 eth_tokens: [USDT USDC]
@@ -23,9 +23,9 @@ errors: []
 
 ## Run Status
 - **Status**: SUCCESS
-- **Scan Time (UTC)**: 2026-07-15T08:48:25Z
-- **Duration**: 02:43:15
-- **Code Version**: `9ab33ea`
+- **Scan Time (UTC)**: 2026-07-16T08:52:33Z
+- **Duration**: 02:47:24
+- **Code Version**: `dc118df`
 
 ## Configuration
 | Parameter | Value |
@@ -59,24 +59,3 @@ errors: []
 - HTTP 400: 0
 - Timeout: 0
 - Other: 0
-
-# Wallet Scanner Stats
-
-## Run Status
-
----
-
-# Brute Force
-
-## Status
-- **Status**: SUCCESS
-- **Scan Time (UTC)**: 2026-07-15T15:20:36Z
-- **Duration**: 06:50:31
-- **Prefix**: fault door pride design claw naive raccoon price
-
-## Results
-| Metric | Value |
-|-------|-------|
-| Mnemonics Scanned | 30000 |
-| Passed Threshold | 0 |
-| Etherscan Usage | 61500 / 100,000 calls |
