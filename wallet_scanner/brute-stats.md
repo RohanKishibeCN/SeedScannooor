@@ -1,8 +1,8 @@
 ---
 scan_status: "SUCCESS"
-scan_date_utc: "2026-07-17T15:26:27Z"
-duration_seconds: 24983
-duration_formatted: "06:56:23"
+scan_date_utc: "2026-07-18T15:34:05Z"
+duration_seconds: 25439
+duration_formatted: "07:03:59"
 mnemonics_count: 30000
 depth: 1
 chains: [ethereum]
@@ -18,8 +18,8 @@ errors: []
 
 ## Run Status
 - **Status**: SUCCESS
-- **Scan Time (UTC)**: 2026-07-17T15:26:27Z
-- **Duration**: 06:56:23
+- **Scan Time (UTC)**: 2026-07-18T15:34:05Z
+- **Duration**: 07:03:59
 
 ## Results
 | Metric | Value |
