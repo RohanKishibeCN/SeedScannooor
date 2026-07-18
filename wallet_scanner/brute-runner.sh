@@ -106,39 +106,56 @@ printf -v duration_fmt "%02d:%02d:%02d" $((duration_sec/3600)) $(((duration_sec%
   fi
 } > "$BRUTE_STATS_FILE"
 
-# ── Merge brute-force results into stats.md (single-file reading) ──
+# ── Inject brute-force results into stats.md YAML front matter ──
 STATS_FILE="$PROJECT_DIR/stats.md"
 if [ -f "$STATS_FILE" ]; then
-  # Extract YAML body (lines after second ---)
-  body=$(awk 'BEGIN{c=0} /^---/{c++;next} c>=2{print}' "$STATS_FILE" 2>/dev/null || true)
-
-  # Rebuild stats.md: keep original, append brute force section
-  {
-    # Print everything up to (and including) the "## Etherscan Errors" line
-    echo "$body" | awk 'BEGIN{found=0} /^## / && !found{found=1; print; next} !found{print}'
-    echo ""
-    echo "---"
-    echo ""
-    echo "# Brute Force"
-    echo ""
-    echo "## Status"
-    echo "- **Status**: SUCCESS"
-    echo "- **Scan Time (UTC)**: ${end_utc}"
-    echo "- **Duration**: ${duration_fmt}"
-    echo "- **Prefix**: fault door pride design claw naive raccoon price"
-    echo ""
-    echo "## Results"
-    echo "| Metric | Value |"
-    echo "|-------|-------|"
-    echo "| Mnemonics Scanned | ${loaded_mnemonics} |"
-    echo "| Passed Threshold | ${passed} |"
-    echo "| Etherscan Usage | $(awk "BEGIN{printf \"%.0f\", ${loaded_mnemonics:-0}/20 + ${loaded_mnemonics:-0}*2}") / 100,000 calls |"
-    if [ "${passed}" -gt 0 ] 2>/dev/null; then
-      echo ""
-      echo "## ⚡ **FOUND A WALLET WITH BALANCE!** ⚡"
-      echo "Check wallet_scanner/brute_results/ directory for details."
-    fi
-  } >> "$STATS_FILE"
+  # Insert brute-force fields before "errors:" in YAML front matter
+  # Also append Brute Force section at the end
+  awk -v end_utc="${end_utc}" \
+      -v duration_fmt="${duration_fmt}" \
+      -v loaded="${loaded_mnemonics}" \
+      -v passed="${passed}" \
+      -v eth_calls="$(awk "BEGIN{printf \"%.0f\", ${loaded_mnemonics:-0}/20 + ${loaded_mnemonics:-0}*2}")" \
+  '
+  BEGIN { in_yaml=0; yaml_done=0; }
+  /^---/ && !yaml_done { in_yaml=!in_yaml; if (!in_yaml) yaml_done=1; print; next; }
+  in_yaml && /^errors:/ {
+    print "brute_mnemonics_count: " loaded;
+    print "brute_passed: " passed;
+    print "brute_duration_seconds: 0";
+    print "brute_prefix: \"fault door pride design claw naive raccoon price\"";
+    print;
+    next;
+  }
+  { print; }
+  END {
+    if (!yaml_done) {
+      # YAML might not have closed properly, but we still append
+    }
+    # Append Brute Force section
+    print "";
+    print "---";
+    print "";
+    print "# Brute Force";
+    print "";
+    print "## Status";
+    print "- **Status**: SUCCESS";
+    print "- **Scan Time (UTC）**: " end_utc;
+    print "- **Duration**: " duration_fmt;
+    print "- **Prefix**: fault door pride design claw naive raccoon price";
+    print "";
+    print "## Results";
+    print "| Metric | Value |";
+    print "|-------|-------|";
+    print "| Mnemonics Scanned | " loaded " |";
+    print "| Passed Threshold | " passed " |";
+    print "| Etherscan Usage | " eth_calls " / 100,000 calls |";
+    if (passed+0 > 0) {
+      print "";
+      print "## ⚡ **FOUND A WALLET WITH BALANCE!** ⚡";
+      print "Check wallet_scanner/brute_results/ directory for details.";
+    }
+  }' "$STATS_FILE" > "${STATS_FILE}.tmp" && mv "${STATS_FILE}.tmp" "$STATS_FILE"
 fi
 
 # Push both stats files to GitHub
