@@ -1,9 +1,9 @@
 ---
 scan_status: "SUCCESS"
-scan_date_utc: "2026-07-26T08:50:37Z"
-duration_seconds: 9929
+scan_date_utc: "2026-07-27T08:49:39Z"
+duration_seconds: 9871
 mnemonics_count: 2000
-mnemonics_hash: "907c1b48"
+mnemonics_hash: "087c17a7"
 depth: 5
 chains: [ethereum,solana]
 eth_tokens: [USDT USDC]
@@ -16,10 +16,6 @@ etherscan_rate_percent: 20.5
 notion_pages_written: -
 notion_failed: -
 passed_threshold: 0
-brute_mnemonics_count: 30000
-brute_passed: 0
-brute_duration_seconds: 0
-brute_prefix: "fault door pride design claw naive raccoon price"
 errors: []
 ---
 
@@ -27,9 +23,9 @@ errors: []
 
 ## Run Status
 - **Status**: SUCCESS
-- **Scan Time (UTC)**: 2026-07-26T08:50:37Z
-- **Duration**: 02:45:29
-- **Code Version**: `e83487e`
+- **Scan Time (UTC)**: 2026-07-27T08:49:39Z
+- **Duration**: 02:44:31
+- **Code Version**: `5fa2c55`
 
 ## Configuration
 | Parameter | Value |
@@ -63,20 +59,3 @@ errors: []
 - HTTP 400: 0
 - Timeout: 0
 - Other: 0
-
----
-
-# Brute Force
-
-## Status
-- **Status**: SUCCESS
-- **Scan Time (UTC）**: 2026-07-26T15:23:59Z
-- **Duration**: 06:53:54
-- **Prefix**: fault door pride design claw naive raccoon price
-
-## Results
-| Metric | Value |
-|-------|-------|
-| Mnemonics Scanned | 30000 |
-| Passed Threshold | 0 |
-| Etherscan Usage | 61500 / 100,000 calls |
