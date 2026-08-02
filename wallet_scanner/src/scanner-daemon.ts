@@ -230,6 +230,17 @@ const main = async (): Promise<void> => {
 
   writeStatus("RUNNING");
 
+  // 创建空结果文件（Lark 需要始终能读到这个文件）
+  if (!fs.existsSync(FOUND_FILE)) {
+    fs.writeFileSync(
+      FOUND_FILE,
+      "# SeedScannooor Found Wallets\n" +
+        "# 时间 UTC | 助记词 | 链 | 地址 | USD 估值\n" +
+        "# （尚未发现符合条件的钱包）\n",
+      "utf-8"
+    );
+  }
+
   let lastStatusTime = Date.now();
 
   // ── 主循环 ──
