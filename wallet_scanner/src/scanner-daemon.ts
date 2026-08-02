@@ -12,9 +12,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { randomBytes } from "node:crypto";
 import bip39 from "bip39";
 
+import { generateBruteMnemonic } from "./brute.js";
 import { loadConfig } from "./config.js";
 import { scanEvmAddresses } from "./evm.js";
 import { calculateTotalUsd, getPrices } from "./filter.js";
@@ -22,12 +22,10 @@ import { deriveAddresses } from "./mnemonic.js";
 import { scanSolanaAddresses } from "./solana.js";
 import type { Chain, EvmAddressBalance, SolanaAddressBalance } from "./types.js";
 
-// ── 固定前8个助记词（暴力破解前缀）──
-const KNOWN_WORDS = ["fault", "door", "pride", "design", "claw", "naive", "raccoon", "price"];
-
 // ── 核心参数 ──
 const BATCH_SIZE = 10;                        // 每批 10 条助记词
 const DEPTH = 2;                               // depth=2（ETH+SOL 各2地址）
+const THRESHOLD_USD = 5.0;                     // 找到记录阈值 >$5（不受 config.yaml 影响）
 const ETHERSCAN_INTERVAL = 370;              // Etherscan 调用间隔（10% 余量）
 const DAILY_LIMIT = 90_000;                  // 每日调用上限（10% 余量）
 const MAX_RANDOM_DAILY = 2_000;             // 每天随机助记词上限
@@ -62,30 +60,6 @@ const utcMidnight = (): Date => {
   const now = new Date();
   const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
   return utc;
-};
-
-/**
- * 生成一条前8个词固定的 BIP39 助记词
- * 后4个词随机，由 bip39.entropyToMnemonic 计算 checksum 并补全
- */
-const generateBruteMnemonic = (): string => {
-  const entropy = Buffer.alloc(16);
-
-  let combined = 0n;
-  for (const word of KNOWN_WORDS) {
-    const idx = bip39.wordlists.english.indexOf(word);
-    combined = (combined << 11n) | BigInt(idx);
-  }
-
-  for (let i = 0; i < 11; i++) {
-    const shift = BigInt((10 - i) * 8);
-    entropy[i] = Number((combined >> shift) & 0xFFn);
-  }
-
-  const rand = randomBytes(5);
-  rand.copy(entropy, 11);
-
-  return bip39.entropyToMnemonic(entropy);
 };
 
 /**
@@ -178,12 +152,17 @@ const main = async (): Promise<void> => {
   // 防重复启动
   if (fs.existsSync(PID_FILE)) {
     const oldPid = fs.readFileSync(PID_FILE, "utf-8").trim();
-    try {
-      process.kill(Number(oldPid), 0);
-      console.error(`[${timestamp()}] Another instance is already running (PID=${oldPid}). Exiting.`);
-      process.exit(1);
-    } catch {
-      // old PID is stale, continue
+    // 只认正整数 PID：空内容/垃圾内容会被 Number() 解析成 0，
+    // 而 process.kill(0, 0) 检查的是进程组且恒成功，会造成误判
+    const pidNum = /^\d+$/.test(oldPid) ? Number(oldPid) : NaN;
+    if (Number.isInteger(pidNum) && pidNum > 0) {
+      try {
+        process.kill(pidNum, 0);
+        console.error(`[${timestamp()}] Another instance is already running (PID=${oldPid}). Exiting.`);
+        process.exit(1);
+      } catch {
+        // old PID is stale, continue
+      }
     }
   }
 
@@ -213,12 +192,22 @@ const main = async (): Promise<void> => {
   console.log(`  Depth: ${DEPTH}`);
   console.log(`  ETH tokens: ${cfg.ethTokens.map((t) => t.symbol).join(", ")}`);
   console.log(`  SOL tokens: ${cfg.solTokens.map((t) => t.symbol).join(", ")}`);
-  console.log(`  Threshold: $${cfg.thresholdUsd}`);
+  console.log(`  Threshold: $${THRESHOLD_USD}`);
   console.log(`  Etherscan interval: ${ETHERSCAN_INTERVAL}ms`);
   console.log(`  Daily limit: ${DAILY_LIMIT} calls`);
   console.log(`  Max random/day: ${MAX_RANDOM_DAILY}`);
   console.log(`  Batch size: ${BATCH_SIZE}`);
   console.log(`  SOL concurrent: ${SOL_CONCURRENT}`);
+
+  // 代币配置必须存在：本方案依赖 USDT/USDC 合约来查代币余额，
+  // 若 .env 缺失 ETH_TOKENS/SOL_TOKENS，会导致静默按错误方案运行
+  if (cfg.ethTokens.length === 0 || cfg.solTokens.length === 0) {
+    throw new Error(
+      "ETH_TOKENS and SOL_TOKENS must be configured in .env " +
+        "(e.g. ETH_TOKENS=USDT=0xdAC17F958D2ee523a2206206994597C13D831ec7,USDC=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 " +
+        "SOL_TOKENS=USDT=<mint>,USDC=<mint>)"
+    );
+  }
 
   // 初始价格
   prices = await getPrices();
@@ -432,7 +421,7 @@ const main = async (): Promise<void> => {
       if (addrs.length === 0) continue;
 
       const totalUsd = calculateTotalUsd(addrs as any, prices);
-      if (totalUsd >= cfg.thresholdUsd) {
+      if (totalUsd >= THRESHOLD_USD) {
         const mnemonic = batchMnemonics[i]!.words;
         const nonZero = addrs.filter(
           (a: any) =>

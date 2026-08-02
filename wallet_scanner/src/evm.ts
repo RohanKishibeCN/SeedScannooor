@@ -39,6 +39,11 @@ const queryEthBalances = async (
     });
 
     if (data.status !== "1" || !Array.isArray(data.result)) {
+      // 限流/服务异常时会静默把余额置 0 → 可能漏掉有余额的钱包，这里显式告警
+      console.warn(
+        `[evm] balancemulti failed: status=${data.status} message=${data.message ?? "unknown"} ` +
+          `(${addresses.length} addresses)`
+      );
       return resultMap;
     }
 
@@ -47,8 +52,14 @@ const queryEthBalances = async (
       const wei = BigInt(item.balance);
       resultMap.set(addr, Number(wei) / 1e18);
     }
-  } catch {
-    // silently return empty map on error
+
+    if (resultMap.size < addresses.length) {
+      console.warn(
+        `[evm] balancemulti returned ${resultMap.size}/${addresses.length} accounts`
+      );
+    }
+  } catch (err) {
+    console.warn(`[evm] balancemulti request failed: ${(err as Error)?.message ?? err}`);
   }
 
   return resultMap;
