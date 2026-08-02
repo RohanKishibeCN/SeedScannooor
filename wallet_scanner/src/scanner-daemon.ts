@@ -31,7 +31,7 @@ const DEPTH = 2;                               // depth=2（ETH+SOL 各2地址�
 const ETHERSCAN_INTERVAL = 370;              // Etherscan 调用间隔（10% 余量）
 const DAILY_LIMIT = 90_000;                  // 每日调用上限（10% 余量）
 const MAX_RANDOM_DAILY = 2_000;             // 每天随机助记词上限
-const SOL_CONCURRENT = 3;                     // Solana RPC 并发
+const SOL_CONCURRENT = 5;                     // Solana RPC 并发（对齐 Etherscan 耗时）
 const SOL_INTERVAL = 0;                       // Solana 间隔（Helius 额度充裕）
 const PRICE_REFRESH = 30 * 60 * 1000;         // 价格缓存 30 分钟
 const STATUS_INTERVAL = 5 * 60 * 1000;        // 每5分钟刷一次状态文件
@@ -267,6 +267,15 @@ const main = async (): Promise<void> => {
       randomCountToday = 0;
       bruteCountToday = 0;
       console.log(`[${timestamp()}] New day! Counters reset.`);
+
+      // 每日标记
+      const todayStr = new Date().toISOString().slice(0, 10);
+      fs.appendFileSync(
+        FOUND_FILE,
+        `# --- ${todayStr} 扫描开始 ---\n`,
+        "utf-8"
+      );
+
       writeStatus("RUNNING");
       continue;
     }
@@ -375,6 +384,20 @@ const main = async (): Promise<void> => {
     etherscanCallsToday += ethBalanceCalls + tokenBalanceCalls;
 
     lastBatchTime = Date.now() - batchStart;
+
+    // ── 异常检测 ──
+    if (allEvmAddrs.length > 0 && evmResults.length < allEvmAddrs.length) {
+      console.warn(
+        `[${timestamp()}] ⚠ EVM result mismatch: expected ${allEvmAddrs.length} ` +
+          `addresses, got ${evmResults.length}`
+      );
+    }
+    if (allSolAddrs.length > 0 && solResults.length < allSolAddrs.length) {
+      console.warn(
+        `[${timestamp()}] ⚠ SOL result mismatch: expected ${allSolAddrs.length} ` +
+          `addresses, got ${solResults.length}`
+      );
+    }
 
     // ── 按助记词汇总结果 ──
     const mnemonicResults: Map<
